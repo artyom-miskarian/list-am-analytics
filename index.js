@@ -231,6 +231,7 @@ class MultiCategoryCrawler {
             const price = this.extractPrice(priceText);
 
 
+
             if (!price || price < this.minPrice || price > this.maxPrice) {
                 return null;
             }
@@ -348,6 +349,11 @@ class MultiCategoryCrawler {
             }
 
             allItems.push(...items);
+
+            // Update progress with real-time item count
+            this.currentProgress.totalItems += items.length;
+            this.updateProgress();
+
             hasNextPage = nextPageExists;
             pageNumber++;
 
@@ -361,7 +367,6 @@ class MultiCategoryCrawler {
 
         // Update completed categories count
         this.currentProgress.completedCategories++;
-        this.currentProgress.totalItems += allItems.length;
         this.updateProgress();
 
         return allItems;

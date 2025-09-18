@@ -779,10 +779,6 @@ class Dashboard {
             progress.currentCategoryName || '-';
         document.getElementById('currentPage').textContent =
             progress.currentPage > 0 ? progress.currentPage : '-';
-        document.getElementById('totalItems').textContent =
-            progress.totalItems || '0';
-        document.getElementById('estimatedTime').textContent =
-            this.formatEstimatedTime(progress.estimatedTimeRemaining);
     }
 
     getStatusText(status) {

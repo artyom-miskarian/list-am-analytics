@@ -2,8 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs').promises;
+const cron = require('node-cron');
 
 const MultiCategoryCrawler = require('../index.js');
+const DailyCrawlJob = require('../cron-daily-crawl.js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -238,6 +240,22 @@ async function getCategoryData(categoryShortName) {
     }
 }
 
+// Initialize daily cron job
+const dailyCrawlJob = new DailyCrawlJob();
+
+// Schedule daily crawl at 2:00 AM Armenia time (GMT+4)
+// Cron format: minute hour day month weekday
+// 0 2 * * * = Every day at 2:00 AM
+cron.schedule('0 2 * * *', async () => {
+    console.log('Starting scheduled daily crawl...');
+    await dailyCrawlJob.run();
+}, {
+    timezone: "Asia/Yerevan"
+});
+
+console.log('Daily crawl job scheduled for 2:00 AM Armenia time');
+
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    console.log('Daily crawl cron job is active');
 });
