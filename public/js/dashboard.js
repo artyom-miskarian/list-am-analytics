@@ -38,7 +38,6 @@ class Dashboard {
         document.getElementById('refreshBtn').addEventListener('click', () => this.loadData());
         document.getElementById('crawlBtn').addEventListener('click', () => this.showCrawlModal());
         document.getElementById('categorySelect').addEventListener('change', (e) => this.switchCategory(e.target.value));
-        document.getElementById('toggleSoldItemsAnalysis').addEventListener('click', () => this.toggleSoldItemsAnalysis());
 
         // Pagination event listeners
         this.setupPaginationEventListeners();
@@ -601,7 +600,7 @@ class Dashboard {
         const checkboxes = Object.entries(this.categories)
             .map(([id, info]) => `
                 <div class="category-checkbox">
-                    <input type="checkbox" id="cat_${id}" value="${id}" ${id === '36' ? 'checked' : ''}>
+                    <input type="checkbox" id="cat_${id}" value="${id}">
                     <label for="cat_${id}">${this.escapeHtml(info.name)}</label>
                     <span class="category-id">${id}</span>
                 </div>
@@ -619,7 +618,7 @@ class Dashboard {
         ).map(checkbox => parseInt(checkbox.value));
 
         if (selectedCategories.length === 0) {
-            alert('Please select at least one category.');
+            alert('⚠️ Please select at least one category to crawl.');
             return;
         }
 
@@ -837,18 +836,6 @@ class Dashboard {
         container.style.display = 'none';
     }
 
-    toggleSoldItemsAnalysis() {
-        const content = document.getElementById('soldItemsAnalysisContent');
-        const button = document.getElementById('toggleSoldItemsAnalysis');
-
-        if (content.style.display === 'none') {
-            content.style.display = 'block';
-            button.textContent = 'Hide Detailed Analysis';
-        } else {
-            content.style.display = 'none';
-            button.textContent = 'Show Detailed Analysis';
-        }
-    }
 
     populateSoldItemsAnalysis(categoryData) {
         // Store current category data for pagination refresh

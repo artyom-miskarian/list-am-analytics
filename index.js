@@ -210,16 +210,26 @@ class MultiCategoryCrawler {
         return isNaN(price) ? null : price;
     }
 
-    extractItemData($, element, categoryId) {
+    extractItemData($, element, categoryId, layoutType = 1) {
         try {
             const $item = $(element);
 
-            const title = $item.find('.l').text().trim();
+            // Extract title based on layout type
+            let title;
+            if (layoutType === 1) {
+                // Layout Type 1: grid layout (.gl containers)
+                title = $item.find('.l').text().trim();
+            } else {
+                // Layout Type 2: list layout (direct items)
+                title = $item.find('.pt').text().trim();
+            }
+
             if (!title) return null;
 
             const priceElement = $item.find('.p');
             const priceText = priceElement.text().trim();
             const price = this.extractPrice(priceText);
+
 
             if (!price || price < this.minPrice || price > this.maxPrice) {
                 return null;
@@ -273,11 +283,23 @@ class MultiCategoryCrawler {
             const $ = cheerio.load(content);
             const items = [];
 
-            const listings = $('a[href*="/item/"]');
-            this.log(`Found ${listings.length} listings on page ${pageNumber}`);
+            // Auto-detect layout type
+            const layoutType1Items = $('.gl a[href*="/item/"]'); // Layout Type 1 (phones)
+            const layoutType2Items = $('a[href*="/item/"]').not('.gl a'); // Layout Type 2 (dogs, laptops)
+
+            let listings, layoutType;
+            if (layoutType1Items.length > 0) {
+                listings = layoutType1Items;
+                layoutType = 1;
+                this.log(`Found ${listings.length} listings on page ${pageNumber} (Layout Type 1 - grid layout)`);
+            } else {
+                listings = layoutType2Items;
+                layoutType = 2;
+                this.log(`Found ${listings.length} listings on page ${pageNumber} (Layout Type 2 - list layout)`);
+            }
 
             listings.each((index, element) => {
-                const item = this.extractItemData($, element, categoryId);
+                const item = this.extractItemData($, element, categoryId, layoutType);
                 if (item) {
                     items.push(item);
                 }

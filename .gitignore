@@ -13,7 +13,7 @@ phone_data/
 .env
 .env.local
 
-# IDE files
+# IDE files`
 .vscode/
 .idea/
 
