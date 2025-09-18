@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>List.am Crawler Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📱 List.am Crawler Dashboard</h1>
+            <div class="controls">
+                <button id="refreshBtn" class="btn">🔄 Refresh</button>
+                <button id="crawlBtn" class="btn btn-primary">🕷️ Start Crawl</button>
+            </div>
+        </header>
+
+        <div class="control-section">
+            <div class="category-filter">
+                <label for="categorySelect">View Category:</label>
+                <select id="categorySelect">
+                    <option value="all">All Categories</option>
+                </select>
+            </div>
+
+            <div id="progressSection" class="progress-section" style="display: none;">
+                <div class="progress-header">
+                    <h3>🕷️ Crawl in Progress</h3>
+                    <span id="progressStatus" class="progress-status">Starting...</span>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                    <div class="progress-text">
+                        <span id="progressPercentage">0%</span>
+                        <span id="progressDetails">Preparing...</span>
+                    </div>
+                </div>
+                <div class="progress-info">
+                    <div class="progress-info-item">
+                        <span class="progress-label">Current Category:</span>
+                        <span id="currentCategory">-</span>
+                    </div>
+                    <div class="progress-info-item">
+                        <span class="progress-label">Page:</span>
+                        <span id="currentPage">-</span>
+                    </div>
+                    <div class="progress-info-item">
+                        <span class="progress-label">Items Found:</span>
+                        <span id="totalItems">-</span>
+                    </div>
+                    <div class="progress-info-item">
+                        <span class="progress-label">Estimated Time:</span>
+                        <span id="estimatedTime">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>📊 Total Statistics</h3>
+                <div id="totalStats">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Items:</span>
+                        <span id="totalCurrentItems" class="stat-value">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Total Sold:</span>
+                        <span id="totalSoldItems" class="stat-value">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Total New:</span>
+                        <span id="totalNewItems" class="stat-value">-</span>
+                    </div>
+                    <div id="categoriesCountItem" class="stat-item">
+                        <span class="stat-label">Categories:</span>
+                        <span id="categoriesCount" class="stat-value">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <h3>🕒 Last Crawl Info</h3>
+                <div id="lastCrawlInfo">
+                    <div class="stat-item">
+                        <span class="stat-label">Most Recent:</span>
+                        <span id="lastCrawlDate" class="stat-value">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Oldest:</span>
+                        <span id="oldestCrawlDate" class="stat-value">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Status:</span>
+                        <span id="crawlStatus" class="stat-value">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <h3>📂 Categories Overview</h3>
+                <div id="categoriesOverview">
+                    <div class="categories-grid">
+                        Loading...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-section">
+            <div class="chart-container">
+                <h3>📈 Items Sold vs New Over Time</h3>
+                <canvas id="trendsChart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h3>🏷️ Sales by Category</h3>
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+
+        <div class="tables-section">
+            <div class="table-container">
+                <h3>🔥 Recently Sold Items</h3>
+                <div class="table-wrapper">
+                    <table id="soldItemsTable">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Price</th>
+                                <th>Location</th>
+                                <th>Category</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="4" class="loading">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="table-container" id="soldItemsAnalysisContainer" style="display: none;">
+                <h3>📊 Sold Items Analysis</h3>
+                <div class="analysis-controls">
+                    <button id="toggleSoldItemsAnalysis" class="btn btn-secondary">Show Detailed Analysis</button>
+                </div>
+                <div id="soldItemsAnalysisContent" style="display: none;">
+                    <div class="analysis-summary">
+                        <div class="summary-stats">
+                            <div class="summary-stat">
+                                <span class="label">Total Sold Items:</span>
+                                <span id="totalSoldCount" class="value">-</span>
+                            </div>
+                            <div class="summary-stat">
+                                <span class="label">Unique Items:</span>
+                                <span id="uniqueSoldCount" class="value">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <h4>📋 Items Sold by Title (Most Popular First)</h4>
+                        <div class="pagination-info">
+                            <span id="soldByTitleInfo" class="pagination-info-text">Showing 0 - 0 of 0 items</span>
+                        </div>
+                        <table id="soldItemsByTitleTable">
+                            <thead>
+                                <tr>
+                                    <th>Item Title</th>
+                                    <th>Times Sold</th>
+                                    <th>Last Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="3" class="loading">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                        <div class="pagination-controls">
+                            <button id="soldByTitlePrevBtn" class="btn btn-secondary pagination-btn" disabled>Previous</button>
+                            <span id="soldByTitlePageInfo" class="page-info">Page 1 of 1</span>
+                            <button id="soldByTitleNextBtn" class="btn btn-secondary pagination-btn" disabled>Next</button>
+                            <select id="soldByTitlePageSize" class="page-size-select">
+                                <option value="10" selected>10 per page</option>
+                                <option value="25">25 per page</option>
+                                <option value="50">50 per page</option>
+                                <option value="100">100 per page</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <h4>🛍️ Complete Sold Items List</h4>
+                        <div class="pagination-info">
+                            <span id="allSoldItemsInfo" class="pagination-info-text">Showing 0 - 0 of 0 items</span>
+                        </div>
+                        <table id="allSoldItemsTable">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Price</th>
+                                    <th>Location</th>
+                                    <th>Date Listed</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="4" class="loading">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                        <div class="pagination-controls">
+                            <button id="allSoldItemsPrevBtn" class="btn btn-secondary pagination-btn" disabled>Previous</button>
+                            <span id="allSoldItemsPageInfo" class="page-info">Page 1 of 1</span>
+                            <button id="allSoldItemsNextBtn" class="btn btn-secondary pagination-btn" disabled>Next</button>
+                            <select id="allSoldItemsPageSize" class="page-size-select">
+                                <option value="10" selected>10 per page</option>
+                                <option value="25">25 per page</option>
+                                <option value="50">50 per page</option>
+                                <option value="100">100 per page</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <h3>🆕 Current Listings</h3>
+                <div class="table-wrapper">
+                    <table id="currentItemsTable">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Price</th>
+                                <th>Location</th>
+                                <th>Category</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="5" class="loading">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>🕷️ Start New Crawl</h2>
+            <form id="crawlForm">
+                <div class="form-group">
+                    <label for="categories">Categories:</label>
+                    <div id="categoriesSelector" class="categories-selector">
+                        <div class="loading">Loading categories...</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="crawlMinPrice">Min Price (֏):</label>
+                    <input type="number" id="crawlMinPrice" value="5000">
+                </div>
+                <div class="form-group">
+                    <label for="crawlMaxPrice">Max Price (֏):</label>
+                    <input type="number" id="crawlMaxPrice" value="80000">
+                </div>
+                <button type="submit" class="btn btn-primary">Start Crawl</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/dashboard.js"></script>
+</body>
+</html>
