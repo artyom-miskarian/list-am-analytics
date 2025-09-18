@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📱 Phone Deals - List.am Crawler</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+
+        .file-upload {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .file-upload-wrapper {
+            position: relative;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 25px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .file-upload input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-upload-label {
+            display: inline-block;
+            padding: 10px 20px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload-label:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .file-status {
+            margin-top: 10px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .file-status.success {
+            color: #27ae60;
+        }
+
+        .file-status.error {
+            color: #e74c3c;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 15px;
+            border-radius: 25px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .control-group label {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .control-group input, .control-group select {
+            border: none;
+            padding: 8px 12px;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+        }
+
+        .phone-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .phone-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .phone-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
+
+        .phone-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
+        }
+
+        .phone-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .phone-price {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #e74c3c;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .phone-location {
+            color: #666;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .phone-date {
+            color: #999;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+        }
+
+        .phone-link {
+            display: inline-block;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .phone-link:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .no-results {
+            text-align: center;
+            color: white;
+            font-size: 1.2em;
+            margin: 50px 0;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+        }
+
+        .welcome-message {
+            text-align: center;
+            color: white;
+            font-size: 1.2em;
+            margin: 50px 0;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .stats {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .phone-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>📱 Phone Deals Dashboard</h1>
+        <p>Latest phone listings from List.am</p>
+        <div class="stats">
+            <div class="stat-item">
+                <span id="total-phones">0</span> phones found
+            </div>
+            <div class="stat-item">
+                Price range: <span id="price-range">-</span>
+            </div>
+            <div class="stat-item">
+                Last updated: <span id="last-updated">No data loaded</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="file-upload">
+        <div class="file-upload-wrapper">
+            <input type="file" id="file-input" accept=".json" />
+            <label for="file-input" class="file-upload-label">
+                📁 Select JSON File (current_phones.json)
+            </label>
+            <div id="file-status" class="file-status">
+                Choose a JSON file to load phone data
+            </div>
+        </div>
+    </div>
+
+    <div class="controls" style="display: none;" id="controls">
+        <div class="control-group">
+            <label for="search">🔍 Search:</label>
+            <input type="text" id="search" placeholder="Search phones...">
+        </div>
+
+        <div class="control-group">
+            <label for="sort">📊 Sort by:</label>
+            <select id="sort">
+                <option value="price-asc">Price: Low to High</option>
+                <option value="price-desc">Price: High to Low</option>
+                <option value="title">Title A-Z</option>
+                <option value="location">Location</option>
+                <option value="date">Date Added</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="min-price">💰 Min Price:</label>
+            <input type="number" id="min-price" placeholder="5000" value="5000">
+        </div>
+
+        <div class="control-group">
+            <label for="max-price">💰 Max Price:</label>
+            <input type="number" id="max-price" placeholder="30000" value="30000">
+        </div>
+    </div>
+
+    <div class="phone-grid" id="phone-grid">
+        <div class="welcome-message">
+            🌟 <strong>Welcome to Phone Deals Dashboard!</strong> 🌟<br><br>
+            📱 Click the button above to select your <code>current_phones.json</code> file<br>
+            🔍 Then browse, search, and filter through all the phone listings<br>
+            💫 Beautiful cards with prices, locations, and direct links to List.am
+        </div>
+    </div>
+
+    <div class="no-results" id="no-results" style="display: none;">
+        😔 No phones found matching your criteria
+    </div>
+</div>
+
+<script>
+    let allPhones = [];
+    let filteredPhones = [];
+
+    // File input handler
+    document.getElementById('file-input').addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        const statusDiv = document.getElementById('file-status');
+
+        if (!file) {
+            return;
+        }
+
+        if (!file.name.endsWith('.json')) {
+            statusDiv.textContent = '❌ Please select a JSON file';
+            statusDiv.className = 'file-status error';
+            return;
+        }
+
+        statusDiv.textContent = '⏳ Loading file...';
+        statusDiv.className = 'file-status';
+
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+
+                if (!Array.isArray(data)) {
+                    throw new Error('File must contain an array of phones');
+                }
+
+                allPhones = data;
+                filteredPhones = [...allPhones];
+
+                statusDiv.textContent = `✅ Loaded ${allPhones.length} phones from ${file.name}`;
+                statusDiv.className = 'file-status success';
+
+                // Show controls and update display
+                document.getElementById('controls').style.display = 'flex';
+                updateStats();
+                filterAndDisplayPhones();
+
+            } catch (error) {
+                statusDiv.textContent = `❌ Error reading file: ${error.message}`;
+                statusDiv.className = 'file-status error';
+            }
+        };
+
+        reader.onerror = function() {
+            statusDiv.textContent = '❌ Error reading file';
+            statusDiv.className = 'file-status error';
+        };
+
+        reader.readAsText(file);
+    });
+
+    function updateStats() {
+        document.getElementById('total-phones').textContent = allPhones.length;
+
+        if (allPhones.length > 0) {
+            const prices = allPhones.map(p => p.price);
+            const minPrice = Math.min(...prices);
+            const maxPrice = Math.max(...prices);
+            document.getElementById('price-range').textContent = `${minPrice.toLocaleString()}֏ - ${maxPrice.toLocaleString()}֏`;
+
+            const latestDate = new Date(Math.max(...allPhones.map(p => new Date(p.crawledAt))));
+            document.getElementById('last-updated').textContent = latestDate.toLocaleDateString() + ' ' + latestDate.toLocaleTimeString();
+        }
+    }
+
+    function formatPrice(price) {
+        return price.toLocaleString() + '֏';
+    }
+
+    function formatDate(dateString) {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toLocaleDateString();
+    }
+
+    function createPhoneCard(phone) {
+        return `
+                <div class="phone-card">
+                    <div class="phone-title">${escapeHtml(phone.title)}</div>
+                    <div class="phone-price">💰 ${formatPrice(phone.price)}</div>
+                    <div class="phone-location">📍 ${escapeHtml(phone.location)}</div>
+                    ${phone.date ? `<div class="phone-date">📅 ${escapeHtml(phone.date)}</div>` : ''}
+                    <div class="phone-date">🕒 Added: ${formatDate(phone.crawledAt)}</div>
+                    <a href="${phone.url}" target="_blank" class="phone-link">View Details →</a>
+                </div>
+            `;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function filterPhones() {
+        const searchTerm = document.getElementById('search').value.toLowerCase();
+        const minPrice = parseInt(document.getElementById('min-price').value) || 0;
+        const maxPrice = parseInt(document.getElementById('max-price').value) || Infinity;
+
+        filteredPhones = allPhones.filter(phone => {
+            const matchesSearch = phone.title.toLowerCase().includes(searchTerm) ||
+                phone.location.toLowerCase().includes(searchTerm);
+            const matchesPrice = phone.price >= minPrice && phone.price <= maxPrice;
+
+            return matchesSearch && matchesPrice;
+        });
+    }
+
+    function sortPhones() {
+        const sortBy = document.getElementById('sort').value;
+
+        switch (sortBy) {
+            case 'price-asc':
+                filteredPhones.sort((a, b) => a.price - b.price);
+                break;
+            case 'price-desc':
+                filteredPhones.sort((a, b) => b.price - a.price);
+                break;
+            case 'title':
+                filteredPhones.sort((a, b) => a.title.localeCompare(b.title));
+                break;
+            case 'location':
+                filteredPhones.sort((a, b) => a.location.localeCompare(b.location));
+                break;
+            case 'date':
+                filteredPhones.sort((a, b) => new Date(b.crawledAt) - new Date(a.crawledAt));
+                break;
+        }
+    }
+
+    function displayPhones() {
+        const phoneGrid = document.getElementById('phone-grid');
+        const noResults = document.getElementById('no-results');
+
+        if (filteredPhones.length === 0 && allPhones.length > 0) {
+            phoneGrid.innerHTML = '';
+            noResults.style.display = 'block';
+        } else if (filteredPhones.length > 0) {
+            noResults.style.display = 'none';
+            phoneGrid.innerHTML = filteredPhones.map(createPhoneCard).join('');
+        }
+    }
+
+    function filterAndDisplayPhones() {
+        filterPhones();
+        sortPhones();
+        displayPhones();
+    }
+
+    // Event listeners for controls
+    document.getElementById('search').addEventListener('input', filterAndDisplayPhones);
+    document.getElementById('sort').addEventListener('change', filterAndDisplayPhones);
+    document.getElementById('min-price').addEventListener('input', filterAndDisplayPhones);
+    document.getElementById('max-price').addEventListener('input', filterAndDisplayPhones);
+</script>
+</body>
+</html>
