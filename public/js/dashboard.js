@@ -14,6 +14,12 @@ class Dashboard {
                 totalItems: 0,
                 data: []
             },
+            soldByNormalizedTitle: {
+                currentPage: 1,
+                pageSize: 10,
+                totalItems: 0,
+                data: []
+            },
             allSoldItems: {
                 currentPage: 1,
                 pageSize: 10,
@@ -54,6 +60,11 @@ class Dashboard {
         document.getElementById('soldByTitlePrevBtn').addEventListener('click', () => this.changePage('soldByTitle', -1));
         document.getElementById('soldByTitleNextBtn').addEventListener('click', () => this.changePage('soldByTitle', 1));
         document.getElementById('soldByTitlePageSize').addEventListener('change', (e) => this.changePageSize('soldByTitle', parseInt(e.target.value)));
+
+        // Sold by normalized title pagination
+        document.getElementById('soldByNormalizedTitlePrevBtn').addEventListener('click', () => this.changePage('soldByNormalizedTitle', -1));
+        document.getElementById('soldByNormalizedTitleNextBtn').addEventListener('click', () => this.changePage('soldByNormalizedTitle', 1));
+        document.getElementById('soldByNormalizedTitlePageSize').addEventListener('change', (e) => this.changePageSize('soldByNormalizedTitle', parseInt(e.target.value)));
 
         // All sold items pagination
         document.getElementById('allSoldItemsPrevBtn').addEventListener('click', () => this.changePage('allSoldItems', -1));
@@ -845,11 +856,13 @@ class Dashboard {
 
         // Reset pagination to first page when switching categories
         this.pagination.soldByTitle.currentPage = 1;
+        this.pagination.soldByNormalizedTitle.currentPage = 1;
         this.pagination.allSoldItems.currentPage = 1;
 
         const stats = categoryData.latestStats;
         const soldItems = stats.soldItems || [];
         const soldByTitle = stats.soldItemsByTitle || {};
+        const soldByNormalizedTitle = stats.soldItemsByNormalizedTitle || {};
 
         // Update summary stats
         document.getElementById('totalSoldCount').textContent = soldItems.length.toLocaleString();
@@ -858,6 +871,9 @@ class Dashboard {
 
         // Update sold items by title table
         this.updateSoldItemsByTitleTable(soldByTitle, soldItems);
+
+        // Update sold items by normalized title table
+        this.updateSoldItemsByNormalizedTitleTable(soldByNormalizedTitle, soldItems);
 
         // Update complete sold items table
         this.updateAllSoldItemsTable(soldItems);
@@ -877,8 +893,9 @@ class Dashboard {
         // Create a map to get the last price for each title
         const titlePriceMap = {};
         soldItems.forEach(item => {
-            const normalizedTitle = this.normalizeItemTitle(item.title);
-            titlePriceMap[normalizedTitle] = item.price; // This will keep the last occurrence
+            if (item.title && item.price) {
+                titlePriceMap[item.title] = item.price; // Map original title to its price
+            }
         });
 
         // Sort entries by count descending
@@ -907,6 +924,49 @@ class Dashboard {
         // Update pagination info and controls
         this.updatePaginationInfo('soldByTitle', startIndex + 1, endIndex, totalItems);
         this.updatePaginationControls('soldByTitle', currentPage, totalPages);
+    }
+
+    updateSoldItemsByNormalizedTitleTable(soldByNormalizedTitle, soldItems) {
+        const tbody = document.querySelector('#soldItemsByNormalizedTitleTable tbody');
+
+        if (Object.keys(soldByNormalizedTitle).length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" class="loading">No normalized sold items data available</td></tr>';
+            this.updatePaginationInfo('soldByNormalizedTitle', 0, 0, 0);
+            this.updatePaginationControls('soldByNormalizedTitle', 1, 1);
+            return;
+        }
+
+        // Sort entries by count descending
+        const sortedEntries = Object.entries(soldByNormalizedTitle).sort(([,a], [,b]) => b - a);
+
+        // Calculate pagination
+        const totalItems = sortedEntries.length;
+        const pageSize = this.pagination.soldByNormalizedTitle.pageSize;
+        const currentPage = this.pagination.soldByNormalizedTitle.currentPage;
+        const totalPages = Math.ceil(totalItems / pageSize);
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = Math.min(startIndex + pageSize, totalItems);
+
+        // Get items for current page
+        const pageItems = sortedEntries.slice(startIndex, endIndex);
+
+        // Calculate average price from all sold items as a baseline
+        const averagePrice = soldItems.length > 0
+            ? Math.round(soldItems.reduce((sum, item) => sum + (item.price || 0), 0) / soldItems.length)
+            : 0;
+
+        tbody.innerHTML = pageItems
+            .map(([normalizedTitle, count]) => `
+                <tr>
+                    <td style="max-width: 300px; word-wrap: break-word;"><code>${this.escapeHtml(normalizedTitle)}</code></td>
+                    <td class="text-center"><strong>${count}</strong></td>
+                    <td class="text-center">~${averagePrice.toLocaleString()}֏</td>
+                </tr>
+            `).join('');
+
+        // Update pagination info and controls
+        this.updatePaginationInfo('soldByNormalizedTitle', startIndex + 1, endIndex, totalItems);
+        this.updatePaginationControls('soldByNormalizedTitle', currentPage, totalPages);
     }
 
     updateAllSoldItemsTable(soldItems) {
@@ -973,9 +1033,9 @@ class Dashboard {
 
         paginationState.currentPage = newPage;
 
-        // Refresh the table with new pagination
+        // Refresh only the specific table with new pagination
         if (this.currentCategoryData) {
-            this.populateSoldItemsAnalysis(this.currentCategoryData);
+            this.refreshSpecificTable(tableType);
         }
     }
 
@@ -986,9 +1046,28 @@ class Dashboard {
         paginationState.pageSize = parseInt(newSize);
         paginationState.currentPage = 1; // Reset to first page
 
-        // Refresh the table with new pagination
+        // Refresh only the specific table with new pagination
         if (this.currentCategoryData) {
-            this.populateSoldItemsAnalysis(this.currentCategoryData);
+            this.refreshSpecificTable(tableType);
+        }
+    }
+
+    refreshSpecificTable(tableType) {
+        const stats = this.currentCategoryData.latestStats;
+        const soldItems = stats.soldItems || [];
+        const soldByTitle = stats.soldItemsByTitle || {};
+        const soldByNormalizedTitle = stats.soldItemsByNormalizedTitle || {};
+
+        switch (tableType) {
+            case 'soldByTitle':
+                this.updateSoldItemsByTitleTable(soldByTitle, soldItems);
+                break;
+            case 'soldByNormalizedTitle':
+                this.updateSoldItemsByNormalizedTitleTable(soldByNormalizedTitle, soldItems);
+                break;
+            case 'allSoldItems':
+                this.updateAllSoldItemsTable(soldItems);
+                break;
         }
     }
 

@@ -191,6 +191,35 @@
                         </div>
                     </div>
                     <div class="table-wrapper">
+                        <h4>🔗 Items Sold by Normalized Title (Grouped Similar Items)</h4>
+                        <div class="pagination-info">
+                            <span id="soldByNormalizedTitleInfo" class="pagination-info-text">Showing 0 - 0 of 0 items</span>
+                        </div>
+                        <table id="soldItemsByNormalizedTitleTable">
+                            <thead>
+                                <tr>
+                                    <th>Normalized Title</th>
+                                    <th>Times Sold</th>
+                                    <th>Average Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="3" class="loading">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                        <div class="pagination-controls">
+                            <button id="soldByNormalizedTitlePrevBtn" class="btn btn-secondary pagination-btn" disabled>Previous</button>
+                            <span id="soldByNormalizedTitlePageInfo" class="page-info">Page 1 of 1</span>
+                            <button id="soldByNormalizedTitleNextBtn" class="btn btn-secondary pagination-btn" disabled>Next</button>
+                            <select id="soldByNormalizedTitlePageSize" class="page-size-select">
+                                <option value="10" selected>10 per page</option>
+                                <option value="25">25 per page</option>
+                                <option value="50">50 per page</option>
+                                <option value="100">100 per page</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
                         <h4>🛍️ Complete Sold Items List</h4>
                         <div class="pagination-info">
                             <span id="allSoldItemsInfo" class="pagination-info-text">Showing 0 - 0 of 0 items</span>
