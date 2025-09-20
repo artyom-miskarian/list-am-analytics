@@ -597,17 +597,63 @@ class Dashboard {
             return;
         }
 
+        const selectAllCheckbox = `
+            <div class="category-checkbox select-all">
+                <input type="checkbox" id="cat_all" value="all">
+                <label for="cat_all"><strong>Select All Categories</strong></label>
+            </div>
+            <hr style="margin: 10px 0; border: 1px solid #e0e0e0;">
+        `;
+
         const checkboxes = Object.entries(this.categories)
             .map(([id, info]) => `
                 <div class="category-checkbox">
-                    <input type="checkbox" id="cat_${id}" value="${id}">
+                    <input type="checkbox" id="cat_${id}" value="${id}" class="category-item">
                     <label for="cat_${id}">${this.escapeHtml(info.name)}</label>
                     <span class="category-id">${id}</span>
                 </div>
             `)
             .join('');
 
-        container.innerHTML = checkboxes;
+        container.innerHTML = selectAllCheckbox + checkboxes;
+
+        // Add event listener for "Select All" functionality
+        this.setupSelectAllFunctionality();
+    }
+
+    setupSelectAllFunctionality() {
+        const selectAllCheckbox = document.getElementById('cat_all');
+        const categoryCheckboxes = document.querySelectorAll('.category-item');
+
+        if (!selectAllCheckbox) return;
+
+        // Handle "Select All" checkbox change
+        selectAllCheckbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            categoryCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+        });
+
+        // Handle individual category checkbox changes
+        categoryCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                // Update "Select All" state based on individual checkboxes
+                const allChecked = Array.from(categoryCheckboxes).every(cb => cb.checked);
+                const noneChecked = Array.from(categoryCheckboxes).every(cb => !cb.checked);
+
+                if (allChecked) {
+                    selectAllCheckbox.checked = true;
+                    selectAllCheckbox.indeterminate = false;
+                } else if (noneChecked) {
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = false;
+                } else {
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = true;
+                }
+            });
+        });
     }
 
     async handleCrawlSubmit(e) {
@@ -615,7 +661,9 @@ class Dashboard {
 
         const selectedCategories = Array.from(
             document.querySelectorAll('#categoriesSelector input[type="checkbox"]:checked')
-        ).map(checkbox => parseInt(checkbox.value));
+        ).map(checkbox => checkbox.value)
+         .filter(value => value !== 'all') // Exclude the "select all" checkbox
+         .map(value => parseInt(value));
 
         if (selectedCategories.length === 0) {
             alert('⚠️ Please select at least one category to crawl.');
