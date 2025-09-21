@@ -6,6 +6,15 @@ class Dashboard {
         this.currentView = 'all';
         this.progressCheckInterval = null;
 
+
+        // Analytics data cache
+        this.analyticsData = {
+            priceTrends: {},
+            marketVelocity: {},
+            topPerformers: [],
+            timeToSell: {}
+        };
+
         // Pagination state
         this.pagination = {
             soldByNormalizedTitle: {
@@ -49,16 +58,38 @@ class Dashboard {
         document.getElementById('soldByNormalizedTitlePageSize').addEventListener('change', (e) => this.changePageSize('soldByNormalizedTitle', parseInt(e.target.value)));
     }
 
+
     async loadData() {
         try {
             await Promise.all([
                 this.loadAllCategoryData(),
-                this.loadAvailableCategories()
+                this.loadAvailableCategories(),
+                this.loadAnalyticsData()
             ]);
             this.updateCategorySelect(); // Update dropdown after data is loaded
             this.updateDisplay();
         } catch (error) {
             console.error('Error loading data:', error);
+        }
+    }
+
+    async loadAnalyticsData() {
+        try {
+            const [priceTrends, marketVelocity, topPerformers, timeToSell] = await Promise.all([
+                fetch('/api/analytics/price-trends').then(r => r.json()).catch(() => ({})),
+                fetch('/api/analytics/market-velocity').then(r => r.json()).catch(() => ({})),
+                fetch('/api/analytics/top-performers').then(r => r.json()).catch(() => []),
+                fetch('/api/analytics/time-to-sell').then(r => r.json()).catch(() => ({}))
+            ]);
+
+            this.analyticsData = {
+                priceTrends,
+                marketVelocity,
+                topPerformers,
+                timeToSell
+            };
+        } catch (error) {
+            console.log('Failed to load analytics data');
         }
     }
 
@@ -119,6 +150,7 @@ class Dashboard {
         this.updateCategoriesOverview();
         this.updateChartsForAllCategories();
         this.updateTablesForAllCategories();
+        this.updateAnalyticsDisplay();
         this.hideSoldItemsAnalysis();
         this.showCategoriesOverviewBelowStats();
     }
@@ -131,6 +163,7 @@ class Dashboard {
                 this.updateSingleCategoryStats(categoryData);
                 this.updateChartsForSingleCategory(categoryData);
                 this.updateTablesForSingleCategory(categoryData);
+                this.updateAnalyticsDisplayForCategory(categoryData);
                 this.showSoldItemsAnalysis(categoryData);
                 this.showCategoryOverviewInGrid(categoryData);
             }
@@ -349,22 +382,10 @@ class Dashboard {
     updateChartsForAllCategories() {
         // Show the category chart section for all categories view
         this.showCategoryChart();
+        this.showPriceTrendsChart();
 
-        // Combine all history data for trends chart
-        const allHistory = [];
-        const dateMap = new Map();
-
-        this.allCategoryData.forEach(categoryData => {
-            categoryData.history.forEach(stats => {
-                const date = stats.date;
-                if (!dateMap.has(date)) {
-                    dateMap.set(date, { date, soldItems: 0, newItems: 0 });
-                }
-                const entry = dateMap.get(date);
-                entry.soldItems += stats.soldItemsCount || 0;
-                entry.newItems += stats.newItemsCount || 0;
-            });
-        });
+        // Update price trends chart
+        this.updatePriceTrendsChart();
 
         // Combined category chart
         const combinedCategoryData = {};
@@ -385,6 +406,7 @@ class Dashboard {
 
         // Hide the category chart section for single category view
         this.hideCategoryChart();
+        this.hidePriceTrendsChart();
     }
 
     hideCategoryChart() {
@@ -1223,6 +1245,337 @@ class Dashboard {
             .replace(/\s+/g, ' ')                   // Normalize whitespace
             .trim();                                // Remove leading/trailing whitespace
     }
+
+    // New analytics methods
+    updateAnalyticsDisplay() {
+        this.updateMarketVelocityDisplay();
+        this.updateTopPerformersTable();
+        this.updateTimeToSellMetrics();
+    }
+
+    updateAnalyticsDisplayForCategory(categoryData) {
+        this.updateMarketVelocityDisplayForCategory(categoryData);
+        this.updateTopPerformersTableForCategory(categoryData);
+        this.updateTimeToSellMetricsForCategory(categoryData);
+    }
+
+    updateMarketVelocityDisplay() {
+        const container = document.getElementById('marketVelocity');
+        const velocity = this.analyticsData.marketVelocity;
+
+        if (Object.keys(velocity).length === 0) {
+            container.innerHTML = '<div class="loading">No velocity data available</div>';
+            return;
+        }
+
+        const velocityCards = Object.entries(velocity).map(([category, data]) => {
+            const trendIcon = data.trend === 'increasing' ? '📈' :
+                             data.trend === 'decreasing' ? '📉' : '➡️';
+
+            return `
+                <div class="velocity-card">
+                    <h4>${category}</h4>
+                    <div class="velocity-metric">
+                        <span class="velocity-number">${data.itemsPerDay}</span>
+                        <span class="velocity-label">items/day</span>
+                        <span class="velocity-trend">${trendIcon}</span>
+                    </div>
+                    <div class="velocity-details">
+                        <small>${data.totalSoldRecent} sold recently</small>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = `<div class="velocity-grid">${velocityCards}</div>`;
+    }
+
+    updateTopPerformersTable() {
+        const tbody = document.querySelector('#topPerformersTable tbody');
+        const performers = this.analyticsData.topPerformers;
+
+        if (!performers || performers.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="loading">No top performers data available</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = performers.slice(0, 15).map(item => `
+            <tr>
+                <td style="max-width: 200px; word-wrap: break-word;">${this.escapeHtml(item.product)}</td>
+                <td>${this.escapeHtml(item.category)}</td>
+                <td class="text-center"><strong>${item.timesSold}</strong></td>
+                <td class="text-center">${item.avgPrice.toLocaleString()}֏</td>
+                <td class="text-center">${item.revenue.toLocaleString()}֏</td>
+            </tr>
+        `).join('');
+    }
+
+    updateTimeToSellMetrics() {
+        const container = document.getElementById('timeToSellMetrics');
+        const metrics = this.analyticsData.timeToSell;
+
+        if (Object.keys(metrics).length === 0) {
+            container.innerHTML = '<div class="loading">No time-to-sell data available</div>';
+            return;
+        }
+
+        const metricsCards = Object.entries(metrics).map(([category, data]) => `
+            <div class="time-metric-card">
+                <h4>${category}</h4>
+                <div class="metric-grid">
+                    <div class="metric-item">
+                        <span class="metric-value">${data.estimatedDaysToSell}</span>
+                        <span class="metric-label">days to sell</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-value">${data.turnoverRate}%</span>
+                        <span class="metric-label">turnover rate</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-value">${data.avgInventory.toLocaleString()}</span>
+                        <span class="metric-label">avg inventory</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-value">${data.avgSoldPerCrawl}</span>
+                        <span class="metric-label">avg sold/crawl</span>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        container.innerHTML = `<div class="time-metrics-grid">${metricsCards}</div>`;
+    }
+
+    updatePriceTrendsChart() {
+        const ctx = document.getElementById('priceTrendsChart').getContext('2d');
+
+        if (this.charts.priceTrends) {
+            this.charts.priceTrends.destroy();
+        }
+
+        const trends = this.analyticsData.priceTrends;
+        if (Object.keys(trends).length === 0) return;
+
+        const datasets = [];
+        const colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6'];
+        let colorIndex = 0;
+
+        Object.entries(trends).forEach(([category, data]) => {
+            if (data.length > 1) {
+                datasets.push({
+                    label: category,
+                    data: data.map(d => ({ x: d.date, y: d.avgPrice })),
+                    borderColor: colors[colorIndex % colors.length],
+                    backgroundColor: colors[colorIndex % colors.length] + '20',
+                    fill: false,
+                    tension: 0.1
+                });
+                colorIndex++;
+            }
+        });
+
+        if (datasets.length === 0) return;
+
+        this.charts.priceTrends = new Chart(ctx, {
+            type: 'line',
+            data: { datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'day'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Average Price (֏)'
+                        },
+                        beginAtZero: false
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                }
+            }
+        });
+    }
+
+    showPriceTrendsChart() {
+        const chart = document.getElementById('priceTrendsChart');
+        if (chart) {
+            const container = chart.closest('.chart-container');
+            if (container) {
+                container.style.display = 'block';
+            }
+        }
+    }
+
+    hidePriceTrendsChart() {
+        const chart = document.getElementById('priceTrendsChart');
+        if (chart) {
+            const container = chart.closest('.chart-container');
+            if (container) {
+                container.style.display = 'none';
+            }
+        }
+    }
+
+    // Category-specific analytics methods
+    updateMarketVelocityDisplayForCategory(categoryData) {
+        const container = document.getElementById('marketVelocity');
+        const categoryName = categoryData.categoryInfo?.name || categoryData.categoryName;
+        const recentHistory = categoryData.history.slice(-7); // Last 7 days
+
+        if (recentHistory.length < 2) {
+            container.innerHTML = '<div class="loading">Not enough data for velocity calculation</div>';
+            return;
+        }
+
+        const totalSold = recentHistory.reduce((sum, stats) => sum + (stats.soldItemsCount || 0), 0);
+        const dailyAvg = totalSold / recentHistory.length;
+        const trend = recentHistory.length >= 3 ? this.calculateTrend(recentHistory) : 'stable';
+        const trendIcon = trend === 'increasing' ? '📈' : trend === 'decreasing' ? '📉' : '➡️';
+
+        container.innerHTML = `
+            <div class="velocity-grid">
+                <div class="velocity-card">
+                    <h4>${categoryName}</h4>
+                    <div class="velocity-metric">
+                        <span class="velocity-number">${Math.round(dailyAvg * 10) / 10}</span>
+                        <span class="velocity-label">items/day</span>
+                        <span class="velocity-trend">${trendIcon}</span>
+                    </div>
+                    <div class="velocity-details">
+                        <small>${totalSold} sold recently</small>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    updateTopPerformersTableForCategory(categoryData) {
+        const tbody = document.querySelector('#topPerformersTable tbody');
+        const stats = categoryData.latestStats;
+        const soldByTitle = stats.soldItemsByTitle || {};
+        const allSoldFingerprints = (stats.aiNormalization && stats.aiNormalization.allSoldFingerprints) || {};
+
+        // Use AI-normalized data if available, otherwise fall back to title-based
+        const dataToUse = Object.keys(allSoldFingerprints).length > 0 ? allSoldFingerprints : soldByTitle;
+
+        if (Object.keys(dataToUse).length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="loading">No top performers data available for this category</td></tr>';
+            return;
+        }
+
+        const performers = Object.entries(dataToUse)
+            .map(([product, data]) => {
+                const count = typeof data === 'object' ? data.count : data;
+                const avgPrice = typeof data === 'object' ? data.avgPrice : 0;
+
+                if (count >= 2) { // Only include products sold multiple times
+                    return {
+                        product: this.cleanProductName(product),
+                        category: categoryData.categoryInfo?.name || categoryData.categoryName,
+                        timesSold: count,
+                        avgPrice: Math.round(avgPrice),
+                        revenue: Math.round(count * avgPrice)
+                    };
+                }
+                return null;
+            })
+            .filter(item => item !== null)
+            .sort((a, b) => b.timesSold - a.timesSold)
+            .slice(0, 15);
+
+        if (performers.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="loading">No products sold multiple times in this category</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = performers.map(item => `
+            <tr>
+                <td style="max-width: 200px; word-wrap: break-word;">${this.escapeHtml(item.product)}</td>
+                <td>${this.escapeHtml(item.category)}</td>
+                <td class="text-center"><strong>${item.timesSold}</strong></td>
+                <td class="text-center">${item.avgPrice.toLocaleString()}֏</td>
+                <td class="text-center">${item.revenue.toLocaleString()}֏</td>
+            </tr>
+        `).join('');
+    }
+
+    updateTimeToSellMetricsForCategory(categoryData) {
+        const container = document.getElementById('timeToSellMetrics');
+        const categoryName = categoryData.categoryInfo?.name || categoryData.categoryName;
+        const history = categoryData.history.slice(-10); // Last 10 crawls
+
+        if (history.length < 2) {
+            container.innerHTML = '<div class="loading">Not enough data for time-to-sell calculation</div>';
+            return;
+        }
+
+        // Estimate time-to-sell based on inventory turnover
+        const avgInventory = history.reduce((sum, stats) => sum + (stats.totalCurrentItems || 0), 0) / history.length;
+        const avgSold = history.reduce((sum, stats) => sum + (stats.soldItemsCount || 0), 0) / history.length;
+        const estimatedDaysToSell = avgSold > 0 ? Math.round(avgInventory / avgSold) : 0;
+        const turnoverRate = avgInventory > 0 ? Math.round((avgSold / avgInventory) * 100) : 0;
+
+        container.innerHTML = `
+            <div class="time-metrics-grid">
+                <div class="time-metric-card">
+                    <h4>${categoryName}</h4>
+                    <div class="metric-grid">
+                        <div class="metric-item">
+                            <span class="metric-value">${estimatedDaysToSell}</span>
+                            <span class="metric-label">days to sell</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-value">${turnoverRate}%</span>
+                            <span class="metric-label">turnover rate</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-value">${Math.round(avgInventory).toLocaleString()}</span>
+                            <span class="metric-label">avg inventory</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-value">${Math.round(avgSold)}</span>
+                            <span class="metric-label">avg sold/crawl</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    calculateTrend(history) {
+        if (history.length < 3) return 'stable';
+
+        const recent = history.slice(-3);
+        const first = recent[0].soldItemsCount || 0;
+        const last = recent[recent.length - 1].soldItemsCount || 0;
+
+        if (last > first * 1.2) return 'increasing';
+        if (last < first * 0.8) return 'decreasing';
+        return 'stable';
+    }
+
+    cleanProductName(name) {
+        return name
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, l => l.toUpperCase())
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
 }
 
 document.addEventListener('DOMContentLoaded', () => {

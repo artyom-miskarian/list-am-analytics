@@ -729,6 +729,176 @@ tr:hover {
     display: block;
 }
 
+/* Analytics Section Styles */
+.analytics-section {
+    margin-bottom: 30px;
+}
+
+
+/* Market Velocity Styles */
+.velocity-container {
+    padding: 20px;
+}
+
+.velocity-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.velocity-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.velocity-card h4 {
+    margin: 0 0 15px 0;
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.velocity-metric {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.velocity-number {
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.velocity-label {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+.velocity-trend {
+    font-size: 18px;
+}
+
+.velocity-details {
+    opacity: 0.7;
+    font-size: 12px;
+}
+
+/* Time-to-Sell Metrics Styles */
+.time-metrics-container {
+    padding: 20px;
+}
+
+.time-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.time-metric-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.time-metric-card h4 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 16px;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 10px;
+}
+
+.metric-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.metric-item {
+    text-align: center;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.metric-value {
+    display: block;
+    font-size: 24px;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.metric-label {
+    display: block;
+    font-size: 12px;
+    color: #7f8c8d;
+    margin-top: 5px;
+}
+
+/* Chart Container Improvements */
+.charts-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.charts-section .chart-container {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.charts-section .chart-container h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 18px;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 10px;
+}
+
+.charts-section .chart-container canvas {
+    max-height: 300px;
+}
+
+/* Top Performers Table Enhancements */
+#topPerformersTable {
+    width: 100%;
+    margin-top: 10px;
+}
+
+#topPerformersTable th:nth-child(3),
+#topPerformersTable th:nth-child(4),
+#topPerformersTable th:nth-child(5) {
+    text-align: center;
+}
+
+#topPerformersTable tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Control Section Layout Updates */
+.control-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+}
+
+.category-filter {
+    min-width: 200px;
+}
+
 @media (max-width: 768px) {
     .progress-info {
         grid-template-columns: 1fr;
@@ -742,5 +912,26 @@ tr:hover {
 
     .chart-container canvas {
         max-height: 300px;
+    }
+
+    .charts-section {
+        grid-template-columns: 1fr;
+    }
+
+    .control-section {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .velocity-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .time-metrics-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .metric-grid {
+        grid-template-columns: 1fr;
     }
 }

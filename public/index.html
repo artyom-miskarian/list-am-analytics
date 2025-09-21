@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>List.am Crawler Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -114,10 +115,54 @@
             </div>
         </div>
 
+        <div class="analytics-section">
+            <div class="stat-card full-width">
+                <h3>📊 Market Velocity</h3>
+                <div id="marketVelocity" class="velocity-container">
+                    <div class="loading">Loading market velocity...</div>
+                </div>
+            </div>
+        </div>
+
         <div class="charts-section">
+            <div class="chart-container">
+                <h3>📈 Price Trends Over Time</h3>
+                <canvas id="priceTrendsChart"></canvas>
+            </div>
             <div class="chart-container">
                 <h3>🏷️ Sales by Category</h3>
                 <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+
+        <div class="analytics-section">
+            <div class="stat-card full-width">
+                <h3>🏆 Top Performing Products</h3>
+                <div class="table-wrapper">
+                    <table id="topPerformersTable">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Category</th>
+                                <th>Times Sold</th>
+                                <th>Avg Price</th>
+                                <th>Est. Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="5" class="loading">Loading top performers...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="analytics-section">
+            <div class="stat-card full-width">
+                <h3>⏱️ Time-to-Sell Metrics</h3>
+                <div id="timeToSellMetrics" class="time-metrics-container">
+                    <div class="loading">Loading time-to-sell metrics...</div>
+                </div>
             </div>
         </div>
 

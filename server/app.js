@@ -137,6 +137,43 @@ app.get('/api/crawl/status', async (req, res) => {
     }
 });
 
+// New analytics endpoints
+app.get('/api/analytics/price-trends', async (req, res) => {
+    try {
+        const priceTrends = await getPriceTrends();
+        res.json(priceTrends);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get price trends' });
+    }
+});
+
+app.get('/api/analytics/market-velocity', async (req, res) => {
+    try {
+        const velocity = await getMarketVelocity();
+        res.json(velocity);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get market velocity' });
+    }
+});
+
+app.get('/api/analytics/top-performers', async (req, res) => {
+    try {
+        const topPerformers = await getTopPerformers();
+        res.json(topPerformers);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get top performers' });
+    }
+});
+
+app.get('/api/analytics/time-to-sell', async (req, res) => {
+    try {
+        const timeToSell = await getTimeToSellMetrics();
+        res.json(timeToSell);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get time-to-sell metrics' });
+    }
+});
+
 async function loadData(filePath) {
     try {
         const data = await fs.readFile(filePath, 'utf-8');
@@ -238,6 +275,134 @@ async function getCategoryData(categoryShortName) {
         console.error(`Error getting category data for ${categoryShortName}:`, error);
         return null;
     }
+}
+
+// Analytics functions
+async function getPriceTrends() {
+    const allCategoryData = await getAllCategoryData();
+    const trends = {};
+
+    allCategoryData.forEach(categoryData => {
+        const categoryName = categoryData.categoryInfo?.name || categoryData.categoryName;
+        const history = categoryData.history.slice(-30); // Last 30 entries
+
+        trends[categoryName] = history.map(stats => {
+            const soldItems = stats.soldItems || [];
+            const avgPrice = soldItems.length > 0
+                ? soldItems.reduce((sum, item) => sum + (item.price || 0), 0) / soldItems.length
+                : 0;
+
+            return {
+                date: stats.date,
+                avgPrice: Math.round(avgPrice),
+                soldCount: stats.soldItemsCount || 0,
+                totalItems: stats.totalCurrentItems || 0
+            };
+        });
+    });
+
+    return trends;
+}
+
+async function getMarketVelocity() {
+    const allCategoryData = await getAllCategoryData();
+    const velocity = {};
+
+    allCategoryData.forEach(categoryData => {
+        const categoryName = categoryData.categoryInfo?.name || categoryData.categoryName;
+        const recentHistory = categoryData.history.slice(-7); // Last 7 days
+
+        if (recentHistory.length >= 2) {
+            const totalSold = recentHistory.reduce((sum, stats) => sum + (stats.soldItemsCount || 0), 0);
+            const dailyAvg = totalSold / recentHistory.length;
+
+            velocity[categoryName] = {
+                itemsPerDay: Math.round(dailyAvg * 10) / 10,
+                totalSoldRecent: totalSold,
+                trend: recentHistory.length >= 3 ? calculateTrend(recentHistory) : 'stable'
+            };
+        }
+    });
+
+    return velocity;
+}
+
+async function getTopPerformers() {
+    const allCategoryData = await getAllCategoryData();
+    const performers = [];
+
+    allCategoryData.forEach(categoryData => {
+        const stats = categoryData.latestStats;
+        const soldByTitle = stats.soldItemsByTitle || {};
+        const allSoldFingerprints = (stats.aiNormalization && stats.aiNormalization.allSoldFingerprints) || {};
+
+        // Use AI-normalized data if available, otherwise fall back to title-based
+        const dataToUse = Object.keys(allSoldFingerprints).length > 0 ? allSoldFingerprints : soldByTitle;
+
+        Object.entries(dataToUse).forEach(([product, data]) => {
+            const count = typeof data === 'object' ? data.count : data;
+            const avgPrice = typeof data === 'object' ? data.avgPrice : 0;
+
+            if (count >= 2) { // Only include products sold multiple times
+                performers.push({
+                    product: cleanProductName(product),
+                    category: categoryData.categoryInfo?.name || categoryData.categoryName,
+                    timesSold: count,
+                    avgPrice: Math.round(avgPrice),
+                    revenue: Math.round(count * avgPrice)
+                });
+            }
+        });
+    });
+
+    return performers.sort((a, b) => b.timesSold - a.timesSold).slice(0, 20);
+}
+
+async function getTimeToSellMetrics() {
+    const allCategoryData = await getAllCategoryData();
+    const metrics = {};
+
+    allCategoryData.forEach(categoryData => {
+        const categoryName = categoryData.categoryInfo?.name || categoryData.categoryName;
+        const history = categoryData.history.slice(-10); // Last 10 crawls
+
+        if (history.length >= 2) {
+            // Estimate time-to-sell based on inventory turnover
+            const avgInventory = history.reduce((sum, stats) => sum + (stats.totalCurrentItems || 0), 0) / history.length;
+            const avgSold = history.reduce((sum, stats) => sum + (stats.soldItemsCount || 0), 0) / history.length;
+
+            const estimatedDaysToSell = avgSold > 0 ? Math.round(avgInventory / avgSold) : 0;
+
+            metrics[categoryName] = {
+                estimatedDaysToSell,
+                avgInventory: Math.round(avgInventory),
+                avgSoldPerCrawl: Math.round(avgSold),
+                turnoverRate: avgInventory > 0 ? Math.round((avgSold / avgInventory) * 100) : 0
+            };
+        }
+    });
+
+    return metrics;
+}
+
+function calculateTrend(history) {
+    if (history.length < 3) return 'stable';
+
+    const recent = history.slice(-3);
+    const first = recent[0].soldItemsCount || 0;
+    const last = recent[recent.length - 1].soldItemsCount || 0;
+
+    if (last > first * 1.2) return 'increasing';
+    if (last < first * 0.8) return 'decreasing';
+    return 'stable';
+}
+
+function cleanProductName(name) {
+    return name
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, l => l.toUpperCase())
+        .replace(/\s+/g, ' ')
+        .trim();
 }
 
 // Initialize daily cron job
