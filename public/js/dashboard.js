@@ -120,6 +120,7 @@ class Dashboard {
         this.updateChartsForAllCategories();
         this.updateTablesForAllCategories();
         this.hideSoldItemsAnalysis();
+        this.showCategoriesOverviewBelowStats();
     }
 
     async showSingleCategoryView(categoryName) {
@@ -131,6 +132,7 @@ class Dashboard {
                 this.updateChartsForSingleCategory(categoryData);
                 this.updateTablesForSingleCategory(categoryData);
                 this.showSoldItemsAnalysis(categoryData);
+                this.showCategoryOverviewInGrid(categoryData);
             }
         } catch (error) {
             console.error('Error loading single category data:', error);
@@ -219,7 +221,8 @@ class Dashboard {
     }
 
     updateCategoriesOverview() {
-        const container = document.querySelector('.categories-grid');
+        // Target the specific categories-grid inside the all categories section
+        const container = document.querySelector('#categoriesOverview .categories-grid');
 
         if (this.allCategoryData.length === 0) {
             container.innerHTML = '<div class="loading">No category data available</div>';
@@ -410,13 +413,35 @@ class Dashboard {
         const allSoldItems = [];
 
         this.allCategoryData.forEach(categoryData => {
+            console.log(`Category: ${categoryData.categoryName}`);
+            const soldItems = categoryData.latestStats.soldItems || [];
+            console.log(`Sold items count: ${soldItems.length}`);
+            if (soldItems.length > 0) {
+                console.log(`First sold item:`, soldItems[0]);
+                console.log(`Prices in first 3 items:`, soldItems.slice(0, 3).map(item => item.price));
+            }
+
             allCurrentItems.push(...(categoryData.currentItems || []));
-            allSoldItems.push(...(categoryData.latestStats.soldItems || []));
+            allSoldItems.push(...soldItems);
         });
 
-        // Sort by price (descending) and take top items
-        allCurrentItems.sort((a, b) => (b.price || 0) - (a.price || 0));
-        allSoldItems.sort((a, b) => (b.price || 0) - (a.price || 0));
+        console.log(`Total sold items combined: ${allSoldItems.length}`);
+        console.log(`Price range in combined data:`, {
+            min: Math.min(...allSoldItems.map(item => item.price || 0)),
+            max: Math.max(...allSoldItems.map(item => item.price || 0))
+        });
+
+        // For All Categories view, shuffle to show variety; for single category view, sort by price
+        if (this.currentView === 'all') {
+            // Shuffle items to show variety instead of always showing highest-priced items
+            this.shuffleArray(allSoldItems);
+            console.log(`Random sample of sold items:`, allSoldItems.slice(0, 5).map(item => ({title: item.title, price: item.price})));
+        } else {
+            // Sort by price (descending) for single category view
+            allCurrentItems.sort((a, b) => (b.price || 0) - (a.price || 0));
+            allSoldItems.sort((a, b) => (b.price || 0) - (a.price || 0));
+            console.log(`Top 5 sold items by price:`, allSoldItems.slice(0, 5).map(item => ({title: item.title, price: item.price})));
+        }
 
         this.updateSoldItemsTable(allSoldItems.slice(0, 20));
     }
@@ -475,14 +500,20 @@ class Dashboard {
         const isAllCategoriesView = this.currentView === 'all';
         const itemsToShow = isAllCategoriesView ? 10 : 20;
 
-        tbody.innerHTML = items.slice(0, itemsToShow).map(item => `
+        tbody.innerHTML = items.slice(0, itemsToShow).map(item => {
+            // Debug: log price to console
+            if (item.price === 80000) {
+                console.log('Found 80000 price item:', item);
+            }
+            return `
             <tr>
                 <td>${this.escapeHtml(item.title)}</td>
                 <td>${item.price?.toLocaleString()}֏</td>
                 <td>${this.escapeHtml(item.location || '-')}</td>
                 <td>${this.escapeHtml(item.category || '-')}</td>
             </tr>
-        `).join('');
+            `;
+        }).join('');
     }
 
 
@@ -816,6 +847,69 @@ class Dashboard {
         container.style.display = 'none';
     }
 
+    showCategoriesOverviewBelowStats() {
+        // Show the full-width categories overview below stats (All Categories view)
+        const container = document.getElementById('categoriesOverviewSection');
+        const cardInGrid = document.getElementById('categoryOverviewCard');
+        container.style.display = 'block';
+        cardInGrid.style.display = 'none';
+    }
+
+    showCategoryOverviewInGrid(categoryData) {
+        // Show single category overview in the stats grid (Category Details view)
+        const container = document.getElementById('categoriesOverviewSection');
+        const cardInGrid = document.getElementById('categoryOverviewCard');
+        const title = document.getElementById('categoryOverviewTitle');
+        const gridContainer = document.getElementById('categoryOverviewGrid');
+
+        container.style.display = 'none';
+        cardInGrid.style.display = 'block';
+        title.textContent = '📂 Category Overview';
+
+        // Update the grid content with single category data
+        this.updateSingleCategoryOverview(categoryData, gridContainer);
+    }
+
+    hideCategoriesOverview() {
+        const container = document.getElementById('categoriesOverviewSection');
+        const cardInGrid = document.getElementById('categoryOverviewCard');
+        container.style.display = 'none';
+        cardInGrid.style.display = 'none';
+    }
+
+    updateSingleCategoryOverview(categoryData, gridContainer) {
+        const stats = categoryData.latestStats;
+        const info = categoryData.categoryInfo;
+
+        const categoriesGridInSingle = gridContainer.querySelector('.categories-grid');
+        categoriesGridInSingle.innerHTML = `
+            <div class="category-item-card">
+                <h4>${info?.name || categoryData.categoryName}</h4>
+                <div class="category-stats">
+                    <div class="category-stat">
+                        <span class="label">Items:</span>
+                        <span class="value">${(stats.totalCurrentItems || 0).toLocaleString()}</span>
+                    </div>
+                    <div class="category-stat">
+                        <span class="label">Sold:</span>
+                        <span class="value">${(stats.soldItemsCount || 0).toLocaleString()}</span>
+                    </div>
+                    <div class="category-stat">
+                        <span class="label">New:</span>
+                        <span class="value">${(stats.newItemsCount || 0).toLocaleString()}</span>
+                    </div>
+                    <div class="category-stat">
+                        <span class="label">Price Range:</span>
+                        <span class="value">${(stats.priceRange?.min || 0).toLocaleString()}֏ - ${(stats.priceRange?.max || 0).toLocaleString()}֏</span>
+                    </div>
+                    <div class="category-stat">
+                        <span class="label">Last Crawl:</span>
+                        <span class="value">${this.formatDate(stats.date)}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
 
     populateSoldItemsAnalysis(categoryData) {
         // Store current category data for pagination refresh
@@ -958,6 +1052,15 @@ class Dashboard {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    shuffleArray(array) {
+        // Fisher-Yates shuffle algorithm
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
     }
 
     changePage(tableType, direction) {

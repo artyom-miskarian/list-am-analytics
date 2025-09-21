@@ -266,6 +266,14 @@ h1 {
     margin-bottom: 40px;
 }
 
+.categories-overview-section {
+    margin-bottom: 40px;
+}
+
+.stat-card.full-width {
+    width: 100%;
+}
+
 .stat-card {
     background: rgba(255, 255, 255, 0.95);
     padding: 30px;
