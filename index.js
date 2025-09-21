@@ -383,8 +383,29 @@ class MultiCategoryCrawler {
         };
     }
 
+    deduplicateById(items) {
+        const seen = new Set();
+        const deduplicated = [];
+
+        for (const item of items) {
+            if (!seen.has(item.id)) {
+                seen.add(item.id);
+                deduplicated.push(item);
+            }
+        }
+
+        const duplicatesRemoved = items.length - deduplicated.length;
+        if (duplicatesRemoved > 0) {
+            this.log(`Removed ${duplicatesRemoved} duplicate items by ID`);
+        }
+
+        return deduplicated;
+    }
+
     async saveCurrentData(items) {
         try {
+            // Deduplicate items by ID before saving
+            const deduplicatedItems = this.deduplicateById(items);
             const files = this.getDataFiles();
 
             try {
@@ -395,8 +416,8 @@ class MultiCategoryCrawler {
                 this.log('No previous data to backup');
             }
 
-            await fs.writeFile(files.current, JSON.stringify(items, null, 2));
-            this.log(`Saved ${items.length} items to current data file`);
+            await fs.writeFile(files.current, JSON.stringify(deduplicatedItems, null, 2));
+            this.log(`Saved ${deduplicatedItems.length} items to current data file`);
         } catch (error) {
             this.log(`Error saving data: ${error.message}`);
         }
@@ -404,6 +425,9 @@ class MultiCategoryCrawler {
 
     async saveCurrentDataForCategory(items, categoryId) {
         try {
+            // Deduplicate items by ID before saving
+            const deduplicatedItems = this.deduplicateById(items);
+
             // Create a temporary instance with only this category to get correct file names
             const originalCategories = this.categories;
             this.categories = [categoryId];
@@ -418,8 +442,8 @@ class MultiCategoryCrawler {
                 this.log(`No previous data to backup for category ${categoryId}`);
             }
 
-            await fs.writeFile(files.current, JSON.stringify(items, null, 2));
-            this.log(`Saved ${items.length} items to current data file for category ${categoryId}`);
+            await fs.writeFile(files.current, JSON.stringify(deduplicatedItems, null, 2));
+            this.log(`Saved ${deduplicatedItems.length} items to current data file for category ${categoryId}`);
         } catch (error) {
             this.log(`Error saving data for category ${categoryId}: ${error.message}`);
         }
@@ -440,8 +464,12 @@ class MultiCategoryCrawler {
         this.log('Calculating statistics');
 
         const files = this.getDataFiles();
-        const currentItems = await this.loadData(files.current);
-        const previousItems = await this.loadData(files.previous);
+        const currentItemsRaw = await this.loadData(files.current);
+        const previousItemsRaw = await this.loadData(files.previous);
+
+        // Deduplicate both current and previous items by ID
+        const currentItems = this.deduplicateById(currentItemsRaw);
+        const previousItems = this.deduplicateById(previousItemsRaw);
 
         if (previousItems.length === 0) {
             this.log('No previous data available for statistics');
@@ -544,8 +572,12 @@ class MultiCategoryCrawler {
         const files = this.getDataFiles();
         this.categories = originalCategories; // Restore original categories
 
-        const currentItems = await this.loadData(files.current);
-        const previousItems = await this.loadData(files.previous);
+        const currentItemsRaw = await this.loadData(files.current);
+        const previousItemsRaw = await this.loadData(files.previous);
+
+        // Deduplicate both current and previous items by ID
+        const currentItems = this.deduplicateById(currentItemsRaw);
+        const previousItems = this.deduplicateById(previousItemsRaw);
 
         if (previousItems.length === 0) {
             this.log(`No previous data available for statistics for category ${categoryId}`);
