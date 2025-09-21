@@ -105,11 +105,6 @@
 
         <div class="charts-section">
             <div class="chart-container">
-                <h3>📈 Items Sold vs New Over Time</h3>
-                <canvas id="trendsChart"></canvas>
-            </div>
-
-            <div class="chart-container">
                 <h3>🏷️ Sales by Category</h3>
                 <canvas id="categoryChart"></canvas>
             </div>
@@ -150,44 +145,21 @@
                             </div>
                         </div>
                     </div>
-                    <div class="table-wrapper">
-                        <h4>📋 Items Sold by Title (Most Popular First)</h4>
-                        <div class="pagination-info">
-                            <span id="soldByTitleInfo" class="pagination-info-text">Showing 0 - 0 of 0 items</span>
-                        </div>
-                        <table id="soldItemsByTitleTable">
-                            <thead>
-                                <tr>
-                                    <th>Item Title</th>
-                                    <th>Times Sold</th>
-                                    <th>Last Price</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr><td colspan="3" class="loading">Loading...</td></tr>
-                            </tbody>
-                        </table>
-                        <div class="pagination-controls">
-                            <button id="soldByTitlePrevBtn" class="btn btn-secondary pagination-btn" disabled>Previous</button>
-                            <span id="soldByTitlePageInfo" class="page-info">Page 1 of 1</span>
-                            <button id="soldByTitleNextBtn" class="btn btn-secondary pagination-btn" disabled>Next</button>
-                            <select id="soldByTitlePageSize" class="page-size-select">
-                                <option value="10" selected>10 per page</option>
-                                <option value="25">25 per page</option>
-                                <option value="50">50 per page</option>
-                                <option value="100">100 per page</option>
-                            </select>
-                        </div>
+
+                    <!-- Pie Chart for Category-specific sold products -->
+                    <div class="chart-container" id="soldProductsPieChartContainer" style="display: none;">
+                        <h4>🥧 Top Sold Products (AI-Normalized)</h4>
+                        <canvas id="soldProductsPieChart" width="400" height="400"></canvas>
                     </div>
                     <div class="table-wrapper">
-                        <h4>🔗 Items Sold by Normalized Title (Grouped Similar Items)</h4>
+                        <h4>📊 All Sold Products (Intelligently Grouped)</h4>
                         <div class="pagination-info">
                             <span id="soldByNormalizedTitleInfo" class="pagination-info-text">Showing 0 - 0 of 0 items</span>
                         </div>
                         <table id="soldItemsByNormalizedTitleTable">
                             <thead>
                                 <tr>
-                                    <th>Normalized Title</th>
+                                    <th>Product</th>
                                     <th>Times Sold</th>
                                     <th>Average Price</th>
                                 </tr>
@@ -201,37 +173,8 @@
                             <span id="soldByNormalizedTitlePageInfo" class="page-info">Page 1 of 1</span>
                             <button id="soldByNormalizedTitleNextBtn" class="btn btn-secondary pagination-btn" disabled>Next</button>
                             <select id="soldByNormalizedTitlePageSize" class="page-size-select">
-                                <option value="10" selected>10 per page</option>
-                                <option value="25">25 per page</option>
-                                <option value="50">50 per page</option>
-                                <option value="100">100 per page</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="table-wrapper">
-                        <h4>🛍️ Complete Sold Items List</h4>
-                        <div class="pagination-info">
-                            <span id="allSoldItemsInfo" class="pagination-info-text">Showing 0 - 0 of 0 items</span>
-                        </div>
-                        <table id="allSoldItemsTable">
-                            <thead>
-                                <tr>
-                                    <th>Title</th>
-                                    <th>Price</th>
-                                    <th>Location</th>
-                                    <th>Date Listed</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr><td colspan="4" class="loading">Loading...</td></tr>
-                            </tbody>
-                        </table>
-                        <div class="pagination-controls">
-                            <button id="allSoldItemsPrevBtn" class="btn btn-secondary pagination-btn" disabled>Previous</button>
-                            <span id="allSoldItemsPageInfo" class="page-info">Page 1 of 1</span>
-                            <button id="allSoldItemsNextBtn" class="btn btn-secondary pagination-btn" disabled>Next</button>
-                            <select id="allSoldItemsPageSize" class="page-size-select">
-                                <option value="10" selected>10 per page</option>
+                                <option value="10">10 per page</option>
+                                <option value="15" selected>15 per page</option>
                                 <option value="25">25 per page</option>
                                 <option value="50">50 per page</option>
                                 <option value="100">100 per page</option>
@@ -241,25 +184,6 @@
                 </div>
             </div>
 
-            <div class="table-container">
-                <h3>🆕 Current Listings</h3>
-                <div class="table-wrapper">
-                    <table id="currentItemsTable">
-                        <thead>
-                            <tr>
-                                <th>Title</th>
-                                <th>Price</th>
-                                <th>Location</th>
-                                <th>Category</th>
-                                <th>Date</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr><td colspan="5" class="loading">Loading...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         </div>
     </div>
 

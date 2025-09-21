@@ -8,21 +8,9 @@ class Dashboard {
 
         // Pagination state
         this.pagination = {
-            soldByTitle: {
-                currentPage: 1,
-                pageSize: 10,
-                totalItems: 0,
-                data: []
-            },
             soldByNormalizedTitle: {
                 currentPage: 1,
-                pageSize: 10,
-                totalItems: 0,
-                data: []
-            },
-            allSoldItems: {
-                currentPage: 1,
-                pageSize: 10,
+                pageSize: 15,
                 totalItems: 0,
                 data: []
             }
@@ -55,20 +43,10 @@ class Dashboard {
     }
 
     setupPaginationEventListeners() {
-        // Sold by title pagination
-        document.getElementById('soldByTitlePrevBtn').addEventListener('click', () => this.changePage('soldByTitle', -1));
-        document.getElementById('soldByTitleNextBtn').addEventListener('click', () => this.changePage('soldByTitle', 1));
-        document.getElementById('soldByTitlePageSize').addEventListener('change', (e) => this.changePageSize('soldByTitle', parseInt(e.target.value)));
-
         // Sold by normalized title pagination
         document.getElementById('soldByNormalizedTitlePrevBtn').addEventListener('click', () => this.changePage('soldByNormalizedTitle', -1));
         document.getElementById('soldByNormalizedTitleNextBtn').addEventListener('click', () => this.changePage('soldByNormalizedTitle', 1));
         document.getElementById('soldByNormalizedTitlePageSize').addEventListener('change', (e) => this.changePageSize('soldByNormalizedTitle', parseInt(e.target.value)));
-
-        // All sold items pagination
-        document.getElementById('allSoldItemsPrevBtn').addEventListener('click', () => this.changePage('allSoldItems', -1));
-        document.getElementById('allSoldItemsNextBtn').addEventListener('click', () => this.changePage('allSoldItems', 1));
-        document.getElementById('allSoldItemsPageSize').addEventListener('change', (e) => this.changePageSize('allSoldItems', parseInt(e.target.value)));
     }
 
     async loadData() {
@@ -385,9 +363,6 @@ class Dashboard {
             });
         });
 
-        const combinedHistory = Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date));
-        this.updateTrendsChart(combinedHistory);
-
         // Combined category chart
         const combinedCategoryData = {};
         this.allCategoryData.forEach(categoryData => {
@@ -404,7 +379,6 @@ class Dashboard {
             soldItems: stats.soldItemsCount || 0,
             newItems: stats.newItemsCount || 0
         }));
-        this.updateTrendsChart(history);
 
         // Hide the category chart section for single category view
         this.hideCategoryChart();
@@ -444,67 +418,13 @@ class Dashboard {
         allCurrentItems.sort((a, b) => (b.price || 0) - (a.price || 0));
         allSoldItems.sort((a, b) => (b.price || 0) - (a.price || 0));
 
-        this.updateCurrentItemsTable(allCurrentItems.slice(0, 20));
         this.updateSoldItemsTable(allSoldItems.slice(0, 20));
     }
 
     updateTablesForSingleCategory(categoryData) {
-        this.updateCurrentItemsTable(categoryData.currentItems || []);
         this.updateSoldItemsTable(categoryData.latestStats.soldItems || []);
     }
 
-    updateTrendsChart(history) {
-        if (!history || history.length === 0) return;
-
-        const ctx = document.getElementById('trendsChart').getContext('2d');
-
-        if (this.charts.trends) {
-            this.charts.trends.destroy();
-        }
-
-        const labels = history.map(h => h.date);
-        const soldData = history.map(h => h.soldItems || 0);
-        const newData = history.map(h => h.newItems || 0);
-
-        this.charts.trends = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Items Sold',
-                        data: soldData,
-                        borderColor: '#e74c3c',
-                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    },
-                    {
-                        label: 'New Items',
-                        data: newData,
-                        borderColor: '#27ae60',
-                        backgroundColor: 'rgba(39, 174, 96, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                },
-                plugins: {
-                    legend: {
-                        position: 'top'
-                    }
-                }
-            }
-        });
-    }
 
     updateCategoryChart(soldByCategory) {
         const ctx = document.getElementById('categoryChart').getContext('2d');
@@ -551,7 +471,11 @@ class Dashboard {
             return;
         }
 
-        tbody.innerHTML = items.slice(0, 10).map(item => `
+        // Show 20 items for category view, 10 for All Categories view
+        const isAllCategoriesView = this.currentView === 'all';
+        const itemsToShow = isAllCategoriesView ? 10 : 20;
+
+        tbody.innerHTML = items.slice(0, itemsToShow).map(item => `
             <tr>
                 <td>${this.escapeHtml(item.title)}</td>
                 <td>${item.price?.toLocaleString()}֏</td>
@@ -561,24 +485,6 @@ class Dashboard {
         `).join('');
     }
 
-    updateCurrentItemsTable(items) {
-        const tbody = document.querySelector('#currentItemsTable tbody');
-
-        if (!items || items.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="loading">No current items available</td></tr>';
-            return;
-        }
-
-        tbody.innerHTML = items.slice(0, 10).map(item => `
-            <tr>
-                <td>${this.escapeHtml(item.title)}</td>
-                <td>${item.price?.toLocaleString()}֏</td>
-                <td>${this.escapeHtml(item.location || '-')}</td>
-                <td>${this.escapeHtml(item.category || '-')}</td>
-                <td>${this.escapeHtml(item.date || '-')}</td>
-            </tr>
-        `).join('');
-    }
 
     showCrawlModal() {
         document.getElementById('modal').style.display = 'block';
@@ -799,11 +705,23 @@ class Dashboard {
                 percentage = Math.round(completedProgress);
             }
 
-            // Ensure percentage doesn't exceed 100% until actually complete
-            if (progress.status !== 'completed') {
-                percentage = Math.min(percentage, 95);
-            } else {
+            // Handle post-crawling phases (statistics and AI normalization)
+            if (progress.status === 'calculating_statistics') {
+                percentage = Math.max(percentage, 95); // At least 95% for statistics phase
+            } else if (progress.status === 'ai_normalizing' && progress.aiNormalizationProgress) {
+                // AI normalization: 96-99% based on progress
+                const aiProgress = progress.aiNormalizationProgress;
+                if (aiProgress.itemsTotal > 0) {
+                    const aiPercentage = (aiProgress.itemsProcessed / aiProgress.itemsTotal);
+                    percentage = Math.round(96 + (aiPercentage * 3)); // 96% to 99%
+                } else {
+                    percentage = 96;
+                }
+            } else if (progress.status === 'completed') {
                 percentage = 100;
+            } else if (progress.status !== 'completed' && percentage >= 95) {
+                // Cap at 94% during crawling phase to leave room for post-processing
+                percentage = Math.min(percentage, 94);
             }
         }
 
@@ -815,7 +733,12 @@ class Dashboard {
 
         // Update progress details
         const progressDetails = document.getElementById('progressDetails');
-        if (progress.currentCategoryName) {
+        if (progress.status === 'ai_normalizing' && progress.aiNormalizationProgress) {
+            const aiProgress = progress.aiNormalizationProgress;
+            progressDetails.textContent = `AI Processing: ${aiProgress.itemsProcessed}/${aiProgress.itemsTotal} sold items`;
+        } else if (progress.status === 'calculating_statistics') {
+            progressDetails.textContent = 'Analyzing crawled data and calculating statistics...';
+        } else if (progress.currentCategoryName) {
             const currentCategoryIndex = progress.completedCategories + 1;
             progressDetails.textContent = `Category ${currentCategoryIndex} of ${progress.totalCategories}: ${progress.currentCategoryName}`;
         } else {
@@ -823,10 +746,16 @@ class Dashboard {
         }
 
         // Update info items
-        document.getElementById('currentCategory').textContent =
-            progress.currentCategoryName || '-';
-        document.getElementById('currentPage').textContent =
-            progress.currentPage > 0 ? progress.currentPage : '-';
+        if (progress.status === 'ai_normalizing' && progress.aiNormalizationProgress) {
+            document.getElementById('currentCategory').textContent = 'AI Normalization';
+            document.getElementById('currentPage').textContent =
+                `${progress.aiNormalizationProgress.itemsProcessed}/${progress.aiNormalizationProgress.itemsTotal}`;
+        } else {
+            document.getElementById('currentCategory').textContent =
+                progress.currentCategoryName || '-';
+            document.getElementById('currentPage').textContent =
+                progress.currentPage > 0 ? progress.currentPage : '-';
+        }
     }
 
     getStatusText(status) {
@@ -834,6 +763,8 @@ class Dashboard {
             'idle': 'Ready',
             'starting': 'Starting...',
             'crawling': 'Crawling',
+            'calculating_statistics': 'Analyzing Data...',
+            'ai_normalizing': 'AI Normalizing Products...',
             'completed': 'Completed',
             'error': 'Error'
         };
@@ -886,28 +817,29 @@ class Dashboard {
         this.currentCategoryData = categoryData;
 
         // Reset pagination to first page when switching categories
-        this.pagination.soldByTitle.currentPage = 1;
         this.pagination.soldByNormalizedTitle.currentPage = 1;
-        this.pagination.allSoldItems.currentPage = 1;
 
         const stats = categoryData.latestStats;
         const soldItems = stats.soldItems || [];
         const soldByTitle = stats.soldItemsByTitle || {};
-        const soldByNormalizedTitle = stats.soldItemsByNormalizedTitle || {};
+        // Use the new allSoldFingerprints data structure (nested under aiNormalization)
+        const allSoldFingerprints = (stats.aiNormalization && stats.aiNormalization.allSoldFingerprints) || {};
 
         // Update summary stats
         document.getElementById('totalSoldCount').textContent = soldItems.length.toLocaleString();
         document.getElementById('uniqueSoldCount').textContent = Object.keys(soldByTitle).length.toLocaleString();
 
 
-        // Update sold items by title table
-        this.updateSoldItemsByTitleTable(soldByTitle, soldItems);
-
         // Update sold items by normalized title table
-        this.updateSoldItemsByNormalizedTitleTable(soldByNormalizedTitle, soldItems);
+        this.updateSoldItemsByNormalizedTitleTable(allSoldFingerprints, soldItems);
 
-        // Update complete sold items table
-        this.updateAllSoldItemsTable(soldItems);
+        // Create pie chart for category-specific view with normalized data
+        const isAllCategoriesView = this.currentView === 'all';
+        if (!isAllCategoriesView && Object.keys(allSoldFingerprints).length > 0) {
+            this.updateSoldProductsPieChart(allSoldFingerprints);
+        } else {
+            document.getElementById('soldProductsPieChartContainer').style.display = 'none';
+        }
     }
 
     updateSoldItemsByTitleTable(soldByTitle, soldItems) {
@@ -957,18 +889,30 @@ class Dashboard {
         this.updatePaginationControls('soldByTitle', currentPage, totalPages);
     }
 
-    updateSoldItemsByNormalizedTitleTable(soldByNormalizedTitle, soldItems) {
+    updateSoldItemsByNormalizedTitleTable(allSoldFingerprints, soldItems) {
         const tbody = document.querySelector('#soldItemsByNormalizedTitleTable tbody');
 
-        if (Object.keys(soldByNormalizedTitle).length === 0) {
+        if (Object.keys(allSoldFingerprints).length === 0) {
             tbody.innerHTML = '<tr><td colspan="3" class="loading">No normalized sold items data available</td></tr>';
             this.updatePaginationInfo('soldByNormalizedTitle', 0, 0, 0);
             this.updatePaginationControls('soldByNormalizedTitle', 1, 1);
             return;
         }
 
-        // Sort entries by count descending
-        const sortedEntries = Object.entries(soldByNormalizedTitle).sort(([,a], [,b]) => b - a);
+        // Convert new format to sortable entries
+        const sortedEntries = Object.entries(allSoldFingerprints)
+            .filter(([fingerprint]) => {
+                // Filter out fingerprints with 2 or more "unknown" values
+                const unknownCount = (fingerprint.match(/unknown/g) || []).length;
+                return unknownCount < 2;
+            })
+            .map(([fingerprint, data]) => {
+                // Handle both new format {count: X, avgPrice: Y} and legacy format (just number)
+                const count = typeof data === 'object' ? data.count : data;
+                const avgPrice = typeof data === 'object' ? data.avgPrice : 0;
+                return [fingerprint, count, avgPrice];
+            })
+            .sort(([,a], [,b]) => b - a); // Sort by count descending
 
         // Calculate pagination
         const totalItems = sortedEntries.length;
@@ -981,17 +925,12 @@ class Dashboard {
         // Get items for current page
         const pageItems = sortedEntries.slice(startIndex, endIndex);
 
-        // Calculate average price from all sold items as a baseline
-        const averagePrice = soldItems.length > 0
-            ? Math.round(soldItems.reduce((sum, item) => sum + (item.price || 0), 0) / soldItems.length)
-            : 0;
-
         tbody.innerHTML = pageItems
-            .map(([normalizedTitle, count]) => `
+            .map(([normalizedTitle, count, avgPrice]) => `
                 <tr>
-                    <td style="max-width: 300px; word-wrap: break-word;"><code>${this.escapeHtml(normalizedTitle)}</code></td>
+                    <td style="max-width: 300px; word-wrap: break-word;">${this.escapeHtml(this.cleanFingerprint(normalizedTitle))}</td>
                     <td class="text-center"><strong>${count}</strong></td>
-                    <td class="text-center">~${averagePrice.toLocaleString()}֏</td>
+                    <td class="text-center">${(avgPrice || 0).toLocaleString()}֏</td>
                 </tr>
             `).join('');
 
@@ -1000,45 +939,6 @@ class Dashboard {
         this.updatePaginationControls('soldByNormalizedTitle', currentPage, totalPages);
     }
 
-    updateAllSoldItemsTable(soldItems) {
-        const tbody = document.querySelector('#allSoldItemsTable tbody');
-
-
-        if (soldItems.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="loading">No sold items available</td></tr>';
-            this.updatePaginationInfo('allSoldItems', 0, 0, 0);
-            this.updatePaginationControls('allSoldItems', 1, 1);
-            return;
-        }
-
-        // Sort by price descending
-        const sortedItems = soldItems.sort((a, b) => (b.price || 0) - (a.price || 0));
-
-        // Calculate pagination
-        const totalItems = sortedItems.length;
-        const pageSize = this.pagination.allSoldItems.pageSize;
-        const currentPage = this.pagination.allSoldItems.currentPage;
-        const totalPages = Math.ceil(totalItems / pageSize);
-        const startIndex = (currentPage - 1) * pageSize;
-        const endIndex = Math.min(startIndex + pageSize, totalItems);
-
-        // Get items for current page
-        const pageItems = sortedItems.slice(startIndex, endIndex);
-
-        tbody.innerHTML = pageItems
-            .map(item => `
-                <tr>
-                    <td style="max-width: 300px; word-wrap: break-word;">${this.escapeHtml(item.title)}</td>
-                    <td class="text-center">${(item.price || 0).toLocaleString()}֏</td>
-                    <td>${this.escapeHtml(item.location || '-')}</td>
-                    <td class="text-center">${item.date || '-'}</td>
-                </tr>
-            `).join('');
-
-        // Update pagination info and controls
-        this.updatePaginationInfo('allSoldItems', startIndex + 1, endIndex, totalItems);
-        this.updatePaginationControls('allSoldItems', currentPage, totalPages);
-    }
 
     normalizeItemTitle(title) {
         return title
@@ -1087,17 +987,14 @@ class Dashboard {
         const stats = this.currentCategoryData.latestStats;
         const soldItems = stats.soldItems || [];
         const soldByTitle = stats.soldItemsByTitle || {};
-        const soldByNormalizedTitle = stats.soldItemsByNormalizedTitle || {};
+        const allSoldFingerprints = (stats.aiNormalization && stats.aiNormalization.allSoldFingerprints) || {};
 
         switch (tableType) {
             case 'soldByTitle':
                 this.updateSoldItemsByTitleTable(soldByTitle, soldItems);
                 break;
             case 'soldByNormalizedTitle':
-                this.updateSoldItemsByNormalizedTitleTable(soldByNormalizedTitle, soldItems);
-                break;
-            case 'allSoldItems':
-                this.updateAllSoldItemsTable(soldItems);
+                this.updateSoldItemsByNormalizedTitleTable(allSoldFingerprints, soldItems);
                 break;
         }
     }
@@ -1125,6 +1022,98 @@ class Dashboard {
         if (pageInfo) {
             pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
         }
+    }
+
+
+    updateSoldProductsPieChart(allSoldFingerprints) {
+        const container = document.getElementById('soldProductsPieChartContainer');
+        const canvas = document.getElementById('soldProductsPieChart');
+        const ctx = canvas.getContext('2d');
+
+        // Show container
+        container.style.display = 'block';
+
+        // Destroy existing chart if it exists
+        if (this.charts.soldProductsPie) {
+            this.charts.soldProductsPie.destroy();
+        }
+
+        // Prepare data - take top 10 products and handle new data structure
+        const entries = Object.entries(allSoldFingerprints)
+            .filter(([fingerprint]) => {
+                // Filter out fingerprints with 2 or more "unknown" values
+                const unknownCount = (fingerprint.match(/unknown/g) || []).length;
+                return unknownCount < 2;
+            })
+            .map(([fingerprint, data]) => {
+                // Handle both new format {count: X, avgPrice: Y} and legacy format (just number)
+                const count = typeof data === 'object' ? data.count : data;
+                return [fingerprint, count];
+            })
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 10);
+
+        if (entries.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+
+        const labels = entries.map(([fingerprint, count]) => {
+            // Clean up the fingerprint for display
+            const cleaned = this.cleanFingerprint(fingerprint);
+            const truncated = cleaned.length > 25 ? cleaned.substring(0, 25) + '...' : cleaned;
+            return `${truncated} (${count})`;
+        });
+        const data = entries.map(([, count]) => count);
+        const colors = this.generateColors(entries.length);
+
+        this.charts.soldProductsPie = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: colors,
+                    borderColor: colors.map(color => color + 'CC'),
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            boxWidth: 12,
+                            font: {
+                                size: 11
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: ${value} sold (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    cleanFingerprint(fingerprint) {
+        // Clean up the fingerprint for display
+        return fingerprint
+            .replace(/_/g, ' ')                     // Replace underscores with spaces
+            .replace(/\b\w/g, l => l.toUpperCase()) // Capitalize first letter of each word
+            .replace(/\s+/g, ' ')                   // Normalize whitespace
+            .trim();                                // Remove leading/trailing whitespace
     }
 }
 

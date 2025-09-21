@@ -2,7 +2,9 @@ const puppeteer = require('puppeteer');
 const cheerio = require('cheerio');
 const fs = require('fs').promises;
 const path = require('path');
-const MultiCategoryNormalizer = require('./lib/MultiCategoryNormalizer.js');
+require('dotenv').config();
+const AIProductNormalizer = require('./lib/AIProductNormalizer.js');
+const CategoryConfig = require('./lib/CategoryConfig.js');
 
 class MultiCategoryCrawler {
     constructor() {
@@ -15,7 +17,10 @@ class MultiCategoryCrawler {
         this.categories = [36]; // Default to phones
 
         this.browser = null;
-        this.normalizer = new MultiCategoryNormalizer();
+
+        // AI Normalization
+        this.aiNormalizer = new AIProductNormalizer();
+        this.categoryConfig = new CategoryConfig();
 
         // Progress tracking
         this.isRunning = false;
@@ -72,34 +77,6 @@ class MultiCategoryCrawler {
         return this;
     }
 
-    // Get category hint for normalization
-    getCategoryHint(categoryId) {
-        const shortName = this.categoryDefinitions[categoryId]?.shortName;
-        if (!shortName) return null;
-
-        // Map shortNames to normalization hints
-        const hintMap = {
-            'phones': 'phones',
-            'audio_accessories': 'audio',
-            'headphones': 'audio',
-            'kitchen_appliances': 'kitchen',
-            'microwaves': 'kitchen',
-            'coffee_makers': 'kitchen',
-            'tea_kettles': 'kitchen',
-            'cleaning_appliances': 'kitchen'
-        };
-
-        return hintMap[shortName] || null;
-    }
-
-    // Get category hints for multiple items
-    getMultipleCategoryHints(items) {
-        // For mixed categories, we'll pass items with their hints to the normalizer
-        return items.map(item => ({
-            ...item,
-            categoryHint: this.getCategoryHint(item.category)
-        }));
-    }
 
     async init() {
         try {
@@ -500,26 +477,13 @@ class MultiCategoryCrawler {
             newByCategory[cat] = (newByCategory[cat] || 0) + 1;
         });
 
-        // Group sold items by title (with normalization)
+        // Group sold items by title
         const soldByTitle = {};
-        const soldByNormalizedTitle = {};
         soldItems.forEach(item => {
             if (item.title && item.title.trim()) {
-                // Original title grouping
                 soldByTitle[item.title] = (soldByTitle[item.title] || 0) + 1;
-
-                // Normalized title grouping for better duplicate detection
-                const categoryHint = this.getCategoryHint(item.category);
-                const normalizedTitle = this.normalizer.normalizeTitle(item.title, categoryHint);
-                if (normalizedTitle) {
-                    soldByNormalizedTitle[normalizedTitle] = (soldByNormalizedTitle[normalizedTitle] || 0) + 1;
-                }
             }
         });
-
-        // Get normalization statistics
-        const allCurrentItems = [...currentItems, ...filteredPreviousItems];
-        const normalizationStats = this.normalizer.getNormalizationStats(allCurrentItems);
 
         const statistics = {
             date: new Date().toISOString().split('T')[0],
@@ -541,14 +505,6 @@ class MultiCategoryCrawler {
                     obj[title] = count;
                     return obj;
                 }, {}),
-            soldItemsByNormalizedTitle: Object.entries(soldByNormalizedTitle)
-                .sort(([,a], [,b]) => b - a)
-                .slice(0, 20)
-                .reduce((obj, [title, count]) => {
-                    obj[title] = count;
-                    return obj;
-                }, {}),
-            normalizationStats,
             soldItems: soldItems.map(item => ({
                 id: item.id,
                 title: item.title,
@@ -625,26 +581,113 @@ class MultiCategoryCrawler {
             newByCategory[cat] = (newByCategory[cat] || 0) + 1;
         });
 
-        // Group sold items by title (with normalization)
+        // Group sold items by title
         const soldByTitle = {};
-        const soldByNormalizedTitle = {};
-        const categoryHint = this.getCategoryHint(categoryId);
         soldItems.forEach(item => {
             if (item.title && item.title.trim()) {
-                // Original title grouping
                 soldByTitle[item.title] = (soldByTitle[item.title] || 0) + 1;
-
-                // Normalized title grouping for better duplicate detection
-                const normalizedTitle = this.normalizer.normalizeTitle(item.title, categoryHint);
-                if (normalizedTitle) {
-                    soldByNormalizedTitle[normalizedTitle] = (soldByNormalizedTitle[normalizedTitle] || 0) + 1;
-                }
             }
         });
 
-        // Get normalization statistics
-        const allCurrentItems = [...currentItems, ...filteredPreviousItems];
-        const normalizationStats = this.normalizer.getNormalizationStats(allCurrentItems, categoryHint);
+        // AI Normalization (if API key is available)
+        let aiNormalizationStats = null;
+        let soldByNormalizedTitle = {};
+
+        try {
+            if (this.aiNormalizer.apiKey && this.categoryConfig.supportsAINormalization(categoryId)) {
+                const categoryType = this.categoryConfig.getNormalizationType(categoryId);
+
+                this.log(`🤖 Starting AI normalization for sold items in category ${categoryId} (${categoryType})`);
+
+                if (soldItems.length > 0) {
+                    this.log(`📊 Processing ${soldItems.length} sold items only`);
+
+                    // Update progress to show AI normalization phase
+                    this.currentProgress.status = 'ai_normalizing';
+                    this.currentProgress.aiNormalizationProgress = {
+                        phase: 'normalizing',
+                        itemsTotal: soldItems.length,
+                        itemsProcessed: 0
+                    };
+                    this.updateProgress();
+
+                    // Only normalize sold items - this is what we actually need for analysis
+                    const normalizedSoldItems = await this.aiNormalizer.normalizeBatch(soldItems, categoryType, (processed, total) => {
+                        // Progress callback for AI normalization
+                        this.currentProgress.aiNormalizationProgress.itemsProcessed = processed;
+                        this.updateProgress();
+                    });
+
+                    // Calculate stats from sold items
+                    const soldStats = this.aiNormalizer.getNormalizationStats(normalizedSoldItems);
+
+                    // Group sold items by AI fingerprints with price data
+                    const soldItemGroups = this.aiNormalizer.groupByFingerprint(normalizedSoldItems);
+
+                    // Create allSoldFingerprints with both count and average price
+                    const allSoldFingerprints = {};
+                    Object.entries(soldItemGroups).forEach(([fingerprint, group]) => {
+                        soldByNormalizedTitle[fingerprint] = group.count; // Keep for backward compatibility
+                        allSoldFingerprints[fingerprint] = {
+                            count: group.count,
+                            avgPrice: Math.round(group.avgPrice || 0)
+                        };
+                    });
+
+                    aiNormalizationStats = {
+                        enabled: true,
+                        categoryType,
+                        optimization: 'sold_items_only',
+                        itemsProcessed: soldItems.length,
+                        totalItems: currentItems.length + filteredPreviousItems.length,
+                        costSavings: `${Math.round((1 - soldItems.length / (currentItems.length + filteredPreviousItems.length)) * 100)}%`,
+                        soldItemsNormalized: soldItems.length,
+                        soldStats: {
+                            successRate: soldStats.successRate,
+                            uniqueFingerprints: soldStats.uniqueFingerprints,
+                            reductionRate: soldStats.reductionRate
+                        },
+                        allSoldFingerprints: allSoldFingerprints,
+                        normalizedSoldItems: normalizedSoldItems // Store the actual normalized data
+                    };
+
+                    this.log(`✅ AI normalization completed: ${soldItems.length} sold items processed (${aiNormalizationStats.costSavings} cost savings)`);
+
+                    // Clear AI normalization progress
+                    delete this.currentProgress.aiNormalizationProgress;
+                } else {
+                    this.log(`📊 No sold items found - skipping AI normalization`);
+
+                    aiNormalizationStats = {
+                        enabled: true,
+                        categoryType,
+                        optimization: 'sold_items_only',
+                        itemsProcessed: 0,
+                        totalItems: currentItems.length + filteredPreviousItems.length,
+                        costSavings: '100%',
+                        soldItemsNormalized: 0,
+                        reason: 'No sold items to process'
+                    };
+                }
+
+            } else {
+                const reason = !this.aiNormalizer.apiKey ? 'No API key' : 'Category not supported';
+                this.log(`⚠️ AI normalization skipped for category ${categoryId}: ${reason}`);
+
+                aiNormalizationStats = {
+                    enabled: false,
+                    reason,
+                    categoryType: this.categoryConfig.getNormalizationType(categoryId)
+                };
+            }
+        } catch (error) {
+            this.log(`❌ AI normalization failed for category ${categoryId}: ${error.message}`);
+            aiNormalizationStats = {
+                enabled: false,
+                error: error.message,
+                categoryType: this.categoryConfig.getNormalizationType(categoryId)
+            };
+        }
 
         const statistics = {
             date: new Date().toISOString().split('T')[0],
@@ -666,21 +709,16 @@ class MultiCategoryCrawler {
                     obj[title] = count;
                     return obj;
                 }, {}),
-            soldItemsByNormalizedTitle: Object.entries(soldByNormalizedTitle)
-                .sort(([,a], [,b]) => b - a)
-                .slice(0, 20)
-                .reduce((obj, [title, count]) => {
-                    obj[title] = count;
-                    return obj;
-                }, {}),
-            normalizationStats,
+            soldItemsByNormalizedTitle: soldByNormalizedTitle, // All normalized titles with counts (backward compatibility)
             soldItems: soldItems.map(item => ({
                 id: item.id,
                 title: item.title,
                 price: item.price,
                 location: item.location,
                 category: item.category
-            }))
+            })),
+            // AI Normalization results
+            aiNormalization: aiNormalizationStats
         };
 
         try {
@@ -761,6 +799,10 @@ class MultiCategoryCrawler {
 
             // Save data for this specific category
             await this.saveCurrentDataForCategory(items, categoryId);
+
+            // Update progress to show statistics calculation phase
+            this.currentProgress.status = 'calculating_statistics';
+            this.updateProgress();
 
             // Calculate statistics for this specific category
             const statistics = await this.calculateStatisticsForCategory(categoryId);

@@ -683,6 +683,44 @@ tr:hover {
     }
 }
 
+/* AI Normalization Status Styles */
+.status-enabled {
+    color: #2ecc71 !important;
+    font-weight: 600;
+}
+
+.status-disabled {
+    color: #e74c3c !important;
+    font-weight: 600;
+}
+
+.status-unknown {
+    color: #95a5a6 !important;
+    font-weight: 600;
+}
+
+/* Chart container styling */
+.chart-container {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+}
+
+.chart-container h4 {
+    margin-bottom: 20px;
+    color: #2c3e50;
+    font-size: 1.2rem;
+    text-align: center;
+}
+
+.chart-container canvas {
+    max-height: 400px;
+    margin: 0 auto;
+    display: block;
+}
+
 @media (max-width: 768px) {
     .progress-info {
         grid-template-columns: 1fr;
@@ -692,5 +730,9 @@ tr:hover {
         flex-direction: column;
         gap: 10px;
         text-align: center;
+    }
+
+    .chart-container canvas {
+        max-height: 300px;
     }
 }
