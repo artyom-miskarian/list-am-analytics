@@ -692,36 +692,41 @@ class Dashboard {
         if (progress.totalCategories > 0) {
             // Base progress from completed categories
             const completedProgress = (progress.completedCategories / progress.totalCategories) * 100;
+            const categoryWeight = 100 / progress.totalCategories;
 
             // Add progress from current category being processed
-            if (progress.currentPage > 0 && progress.completedCategories < progress.totalCategories) {
-                const maxPages = progress.maxPagesPerCategory || 50;
-                const currentCategoryProgress = Math.min(progress.currentPage / maxPages, 1);
-                const categoryWeight = 100 / progress.totalCategories;
-                const currentCategoryContribution = currentCategoryProgress * categoryWeight;
+            if (progress.completedCategories < progress.totalCategories) {
+                let currentCategoryProgress = 0;
 
+                // During crawling phase of current category
+                if (progress.currentPage > 0 && progress.status === 'crawling') {
+                    const maxPages = progress.maxPagesPerCategory || 50;
+                    currentCategoryProgress = Math.min(progress.currentPage / maxPages, 1) * 0.9; // 90% of category for crawling
+                }
+                // During statistics phase
+                else if (progress.status === 'calculating_statistics') {
+                    currentCategoryProgress = 0.9; // 90% for statistics phase
+                }
+                // During AI normalization phase
+                else if (progress.status === 'ai_normalizing' && progress.aiNormalizationProgress) {
+                    const aiProgress = progress.aiNormalizationProgress;
+                    if (aiProgress.itemsTotal > 0) {
+                        const aiPercentage = (aiProgress.itemsProcessed / aiProgress.itemsTotal);
+                        currentCategoryProgress = 0.9 + (aiPercentage * 0.1); // 90% + up to 10% for AI
+                    } else {
+                        currentCategoryProgress = 0.9;
+                    }
+                }
+
+                const currentCategoryContribution = currentCategoryProgress * categoryWeight;
                 percentage = Math.round(completedProgress + currentCategoryContribution);
             } else {
                 percentage = Math.round(completedProgress);
             }
 
-            // Handle post-crawling phases (statistics and AI normalization)
-            if (progress.status === 'calculating_statistics') {
-                percentage = Math.max(percentage, 95); // At least 95% for statistics phase
-            } else if (progress.status === 'ai_normalizing' && progress.aiNormalizationProgress) {
-                // AI normalization: 96-99% based on progress
-                const aiProgress = progress.aiNormalizationProgress;
-                if (aiProgress.itemsTotal > 0) {
-                    const aiPercentage = (aiProgress.itemsProcessed / aiProgress.itemsTotal);
-                    percentage = Math.round(96 + (aiPercentage * 3)); // 96% to 99%
-                } else {
-                    percentage = 96;
-                }
-            } else if (progress.status === 'completed') {
+            // Handle final completion
+            if (progress.status === 'completed') {
                 percentage = 100;
-            } else if (progress.status !== 'completed' && percentage >= 95) {
-                // Cap at 94% during crawling phase to leave room for post-processing
-                percentage = Math.min(percentage, 94);
             }
         }
 
