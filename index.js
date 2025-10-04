@@ -713,12 +713,30 @@ class MultiCategoryCrawler {
                 };
             }
         } catch (error) {
-            this.log(`❌ AI normalization failed for category ${categoryId}: ${error.message}`);
+            this.log(`⚠️ AI normalization failed for category ${categoryId}: ${error.message}`);
+            this.log(`📊 Continuing with basic statistics without AI normalization...`);
+
+            // Fallback to basic title-based deduplication
+            if (soldItems.length > 0) {
+                // Group sold items by exact title for fallback statistics
+                soldItems.forEach(item => {
+                    const normalizedTitle = item.title.toLowerCase().trim();
+                    soldByNormalizedTitle[normalizedTitle] = (soldByNormalizedTitle[normalizedTitle] || 0) + 1;
+                });
+
+                this.log(`✅ Fallback statistics generated: ${Object.keys(soldByNormalizedTitle).length} unique titles from ${soldItems.length} sold items`);
+            }
+
             aiNormalizationStats = {
                 enabled: false,
                 error: error.message,
-                categoryType: this.categoryConfig.getNormalizationType(categoryId)
+                fallbackMode: true,
+                categoryType: this.categoryConfig.getNormalizationType(categoryId),
+                message: 'Using title-based deduplication as fallback'
             };
+
+            // Clear any AI normalization progress
+            delete this.currentProgress.aiNormalizationProgress;
         }
 
         const statistics = {
